@@ -5,10 +5,7 @@
     "moduleResolution": "NodeNext",
     "outDir": "dist",
     "rootDir": "src",
-    "noEmit": false,
-    "paths": {
-      "#*": ["./src/*"]
-    }
+    "declaration": true
   },
   "include": ["src"]
 }

@@ -6,13 +6,14 @@
 ## Stack
 - Language: TypeScript 5.x, strict
 - Web: Vite + React 19 + Tailwind CSS v4 (`@tailwindcss/vite`)
-- API: Express 5 + Zod, run via `tsx` in dev, compiled with `tsc` for prod
-- Shared: `packages/shared` exports Zod schemas consumed by both apps
+- API: Express 5 + Zod, dev and prod both run compiled output (`tsc -w` + `node --watch`)
+- Types: `packages/types` exports Zod schemas and TS types consumed by both apps
+- Engine: `packages/engine` holds shared pure logic, empty until milestone 2
 - Package manager: pnpm workspaces (`packageManager` pinned in root `package.json`)
 
 ## Commands
 - `pnpm install` (root)
-- `pnpm --filter @playstop/shared build` (run once, or after editing shared, before `dev`/`build` elsewhere)
+- `pnpm --filter @playstop/types build` (run once, or after editing types, before `dev`/`build` elsewhere)
 - `pnpm dev:web` (port 5173) / `pnpm dev:api` (port 3001)
 - `pnpm typecheck` / `pnpm lint` / `pnpm build`
 
@@ -23,7 +24,9 @@
 
 ## Conventions
 - Workspace packages are scoped `@playstop/*`.
-- `packages/shared` has no build-time dependency on `apps/*`, only the reverse.
+- `packages/types` has no build-time dependency on `apps/*` or `packages/engine`, only the reverse.
+- `apps/web` aliases `@/*` to its own `src/*`; `apps/api` aliases `#*` to its own `src/*`
+  (typecheck) / `dist/*` (runtime). See `docs/ARCHITECTURE.md` for why they differ.
 - API env is parsed and validated with Zod at boot (`apps/api/src/env.ts`), invalid env fails fast.
 - No DB, no auth, no booking logic yet. Milestone 1 is scaffold only, see "Do NOT" below.
 
@@ -34,7 +37,7 @@
 - `apps/api/src/server.ts` — Express app, `/health` route, CORS bound to `WEB_ORIGIN`
 - `apps/api/src/env.ts` — Zod env validation, fails fast on boot with a readable error
 - `apps/web/src/App.tsx` — single page, pings `/health` on mount
-- `packages/shared/src/index.ts` — `healthResponseSchema`, the proof the workspace link is real
+- `packages/types/src/api/health.ts` — `healthResponseSchema`, the proof the workspace link is real
 
 ## Reference
 - @.claude/rules/lang.md
@@ -44,7 +47,7 @@
 ## Do NOT
 - Add shadcn/ui, TanStack Router/Query/Table, MongoDB, Mongoose, Redis, Docker, Turborepo,
   tests, auth, or booking logic. Those are milestone 2, adding them now is scope creep.
-- Add a new dependency without checking `packages/shared` and existing workspace deps first.
+- Add a new dependency without checking `packages/types` and existing workspace deps first.
 
 ## On compaction, preserve
 - modified-files list, test commands and results, current plan, unresolved errors

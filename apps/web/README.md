@@ -7,7 +7,7 @@ the result, proving the web-to-api wiring works end to end.
 ## Run locally
 
 ```
-pnpm --filter @playstop/shared build   # once, or after editing packages/shared
+pnpm --filter @playstop/types build   # once, or after editing packages/types
 pnpm dev:web                            # http://localhost:5173
 ```
 
@@ -18,6 +18,12 @@ Copy `.env.example` to `.env` to override the default.
 | Var | Default | Notes |
 | --- | --- | --- |
 | `VITE_API_URL` | `http://localhost:3001` | falls back in code, `App.tsx`, if unset |
+
+## Module alias
+
+`@/*` maps to `src/*`. Set in both `tsconfig.json` (`paths`, for typecheck
+and editor tooling) and `vite.config.ts` (`resolve.alias`, for the actual
+bundle), since Vite doesn't read tsconfig `paths` on its own.
 
 ## Tailwind v4
 

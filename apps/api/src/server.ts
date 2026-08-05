@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
-import type { HealthResponse } from "@playstop/shared";
-import { env } from "./env.js";
+import type { HealthResponse } from "@playstop/types";
+import { env } from "#env.js";
 
 const app = express();
 
