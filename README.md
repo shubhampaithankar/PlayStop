@@ -42,6 +42,12 @@ pnpm build
 These three are what CI runs on every push to `main` and every pull request
 (`.github/workflows/ci.yml`).
 
+To wipe every build output at once:
+
+```
+pnpm clean
+```
+
 ## Deployment
 
 ### API on Render
