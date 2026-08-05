@@ -56,7 +56,17 @@ Three separate mechanisms, chosen per what each context can actually read:
   repo root).
 - Pages talks to Render over HTTPS via `VITE_API_URL`. Render's `WEB_ORIGIN`
   env var is set to the Pages URL and used for CORS.
-- MongoDB Atlas and Upstash Redis are planned (milestone 2), not present yet.
+- MongoDB Atlas M0 and Upstash Redis, both in the Singapore region alongside
+  Render, back both production and local development. There is no local
+  database and no Docker Compose. Dev and prod are separate database names on
+  the same Atlas cluster (`playstop_dev` and `playstop`), with a scoped Atlas
+  user so dev credentials cannot reach the prod database.
+- Atlas M0 throttles at 100 operations/second, so the concurrency test suite
+  cannot run against it. That suite runs in CI only, against GitHub Actions
+  service containers (a real Mongo replica set and a real Redis). See
+  `docs/milestone-2-spec.md` section 9.
+- Render free spins down after 15 minutes idle. An external keepalive ping to
+  `/health` is the mitigation, see the root `README.md`.
 
 ## Package manager
 
@@ -73,7 +83,13 @@ api's `/health` route on mount and shows the result. That is the entire
 feature set, it exists to prove the pipeline: build, typecheck, lint, deploy,
 CORS, env validation, all wired and green.
 
-**Planned (milestone 2), not yet present on purpose:** shadcn/ui, TanStack
-Router/Query/Table, MongoDB, Redis, booking logic, auth, tests. None of this
-is an oversight, see the "Do NOT" list in the root `CLAUDE.md`. Adding any of
-it before milestone 2 starts is scope creep.
+**In progress (milestone 2):** the booking flow, backend only. Availability
+query, Redis soft holds, idempotent confirm, cancel. Variable-duration
+bookings on a 30-minute grid, held atomically through a `slot_claims`
+collection and a Mongo transaction. The full specification is
+`docs/milestone-2-spec.md`, and it is the source of truth for the data model,
+the concurrency design, and the test strategy.
+
+**Planned (milestone 3), not yet present on purpose:** shadcn/ui, TanStack
+Router/Query/Table, the booking UI, auth, accounts. None of this is an
+oversight. Adding any of it before milestone 3 starts is scope creep.
