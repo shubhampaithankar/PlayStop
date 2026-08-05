@@ -75,6 +75,13 @@ Create a project from this repository with:
 - Environment variable: `VITE_API_URL` set to the deployed Render API URL
   (e.g. `https://playstop-api.onrender.com`)
 
+## Repo docs
+
+- `docs/ARCHITECTURE.md` — layout, dependency direction, deployment topology
+- `apps/api/README.md` — API run, env vars, endpoints
+- `apps/web/README.md` — web run, env vars, Tailwind v4 setup
+- `packages/shared/README.md` — shared schemas, what lives here and why
+
 ## Out of scope for milestone 1
 
 shadcn/ui, TanStack Router/Query/Table, MongoDB, Mongoose, Redis, Docker,

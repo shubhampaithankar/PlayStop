@@ -39,6 +39,7 @@
 ## Reference
 - @.claude/rules/lang.md
 - @README.md — local dev and deploy steps (Cloudflare Pages, Render, keepalive ping)
+- @docs/ARCHITECTURE.md — layout, dependency direction, deployment topology
 
 ## Do NOT
 - Add shadcn/ui, TanStack Router/Query/Table, MongoDB, Mongoose, Redis, Docker, Turborepo,
