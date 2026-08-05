@@ -3,6 +3,7 @@ services:
     name: playstop-api
     runtime: node
     plan: free
+    region: singapore
     rootDir: .
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @playstop/types build && pnpm --filter @playstop/api build
     startCommand: node apps/api/dist/server.js
@@ -14,3 +15,9 @@ services:
         sync: false
       - key: PORT
         value: 3001
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: HOLD_TTL_SECONDS
+        value: 300

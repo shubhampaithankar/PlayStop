@@ -10,6 +10,7 @@
   "scripts": {
     "typecheck": "pnpm -r run typecheck",
     "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
     "lint": "eslint .",
     "clean": "pnpm -r exec node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "dev:web": "pnpm --filter @playstop/web dev",

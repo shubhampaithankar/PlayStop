@@ -22,3 +22,33 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm build
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start MongoDB replica set
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: 7.0
+          mongodb-replica-set: rs0
+      - run: pnpm test
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/playstop_test?replicaSet=rs0
+          REDIS_URL: redis://127.0.0.1:6379
