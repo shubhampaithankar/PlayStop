@@ -48,6 +48,23 @@ export const redis = new Redis(env.REDIS_URL, {
 redis.defineCommand("holdAcquire", { lua: HOLD_ACQUIRE_LUA });
 redis.defineCommand("holdRelease", { lua: HOLD_RELEASE_LUA });
 
+// ioredis catches its own unhandled error events and logs them rather than
+// letting Node throw, verified directly against a refused connection. But
+// those logs are raw stack traces that bypass structured logging. A
+// persistent listener keeps connection failures in the same JSON shape as
+// tryRedis's redis_degraded events, so an outage is greppable instead of
+// noise. waitForRedisReady attaches its own once() listener independently;
+// having both is fine.
+redis.on("error", (err: Error) => {
+  console.warn(
+    JSON.stringify({
+      level: "warn",
+      event: "redis_connection_error",
+      error: err.message,
+    }),
+  );
+});
+
 // Upstash verified: ioredis rejects commands issued before the socket is
 // ready with "Stream isn't writeable" when enableOfflineQueue is false. The
 // constructor returning does NOT mean the client is usable; boot must await
