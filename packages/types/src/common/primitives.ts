@@ -13,6 +13,12 @@ export const isoInstantSchema = z.string().datetime({ offset: false });
 
 export const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+// Clients should send a UUID v4. 16 to 128 chars keeps the idempotency
+// collection's _id bounded while giving room for any reasonable client
+// token shape.
+export const idempotencyKeySchema = z.string().min(16).max(128).regex(/^[A-Za-z0-9_-]+$/);
+
 export type ObjectIdString = z.infer<typeof objectIdSchema>;
 export type IsoInstant = z.infer<typeof isoInstantSchema>;
 export type LocalDate = z.infer<typeof localDateSchema>;
+export type IdempotencyKey = z.infer<typeof idempotencyKeySchema>;

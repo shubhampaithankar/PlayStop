@@ -32,6 +32,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@playstop/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@playstop/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -44,6 +47,9 @@ importers:
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
       mongodb:
         specifier: ^7.5.0
         version: 7.5.0
@@ -57,6 +63,9 @@ importers:
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
+      '@types/luxon':
+        specifier: ^3.7.1
+        version: 3.7.3
       '@types/node':
         specifier: ^26.1.2
         version: 26.1.2
