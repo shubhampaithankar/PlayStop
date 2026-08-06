@@ -53,6 +53,33 @@ instances. All 14 checks passed. Findings that supersede the table below:
   outbound TCP both work fine. The long-form `mongodb://host1,host2,host3/?replicaSet=`
   string avoids SRV entirely. Render is unaffected, use SRV there.
 
+## 0b. Measured latency, 2026-08-06, dev machine (India) to Singapore
+
+| Operation | p50 | p95 | p99 |
+|---|---|---|---|
+| Redis PING | 92 | 101 | 357 |
+| Redis SET NX PX | 94 | 96 | 343 |
+| Redis GET | 92 | 96 | 101 |
+| Redis MGET x6 | 92 | 94 | 94 |
+| Redis SCAN MATCH | 92 | 95 | 108 |
+| Mongo ping | 91 | 93 | 94 |
+| Mongo findOne | 91 | 93 | 95 |
+
+All figures in milliseconds. Consequences:
+
+- **`commandTimeout` must be configurable, not a constant.** Section 4's value of
+  500 ms would trip on the measured 357 ms p99 and drop the API into degraded
+  mode during ordinary jitter. Use `REDIS_COMMAND_TIMEOUT_MS`, defaulting to 500
+  for production, set to 2000 in a local `.env`.
+- **These numbers are development-only and must not be used to size production.**
+  The ~90 ms floor is the dev machine in India reaching Singapore. Production is
+  Render Singapore to Upstash and Atlas Singapore, same region, so expect single
+  digit milliseconds. Re-measure from Render before tuning anything for prod.
+- A confirm doing roughly 5 Mongo plus 2 Redis round trips costs about 650 ms of
+  pure network from the dev machine. Manual testing will feel slow, and the
+  low-volume integration tests running against Atlas will take about a second
+  each. That is expected, not a bug, and it is a dev-only cost.
+
 ## 0. What I verified vs assumed
 
 ### Verified
