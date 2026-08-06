@@ -23,6 +23,7 @@ export const errorCodeSchema = z.enum([
   "VALIDATION_FAILED",
   "RATE_LIMITED",
   "BOOKING_NOT_FOUND",
+  "NOT_FOUND", // generic 404 for a route that matches no endpoint at all
   "INTERNAL",
 ]);
 
