@@ -26,6 +26,33 @@ The scarce thing is a (station, time cell) pair and nothing else.
 
 ---
 
+## 0a. Step 0 results, run 2026-08-06 against the real cluster
+
+The step 0 gate has been run against the provisioned Atlas M0 and Upstash
+instances. All 14 checks passed. Findings that supersede the table below:
+
+- **Atlas M0 multi-document transactions are CONFIRMED working.** This was
+  revision 2's single largest open risk. Verified: `setName=atlas-5nqm07-shard-0`
+  (a real replica set), a three-collection transaction committed, and a
+  transaction losing a duplicate-key race on its MIDDLE cell rolled back with
+  zero rows persisted. The `slot_claims` design holds on real infrastructure.
+- **Atlas M0 runs MongoDB 8.0.28**, not 7.x. CI's service container is pinned
+  to 8.0 to match. Do not let those drift.
+- The duplicate key inside a transaction surfaces as `MongoBulkWriteError` with
+  `code === 11000`, as specified.
+- **Upstash requires awaiting the ready state before any command.** With
+  `enableOfflineQueue: false` (which section 4 requires, correctly), ioredis
+  rejects commands issued before the socket is ready with `Stream isn't
+  writeable`. `apps/api/src/redis.ts` must await the `ready` event at boot
+  rather than assuming the constructor returns a usable client. Verified:
+  `SET NX PX`, `EVAL` compare-and-delete, `SCAN MATCH`, and `MGET` all work.
+- **Local dev on Windows may need the non-SRV connection string.** Node's
+  c-ares resolver can fall back to `127.0.0.1` when it cannot parse Windows DNS
+  config (virtual adapters advertising `fec0::` servers are one trigger), which
+  breaks `mongodb+srv://` with `querySrv ECONNREFUSED` while `dns.lookup` and
+  outbound TCP both work fine. The long-form `mongodb://host1,host2,host3/?replicaSet=`
+  string avoids SRV entirely. Render is unaffected, use SRV there.
+
 ## 0. What I verified vs assumed
 
 ### Verified
