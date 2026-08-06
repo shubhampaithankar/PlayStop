@@ -1,3 +1,4 @@
-// No shared domain types yet. Milestone 2 (booking, slots, availability) adds
-// them here, alongside the pure logic that consumes them in @playstop/engine.
-export {};
+export * from "./primitives.js";
+export * from "./cell.js";
+export * from "./error.js";
+export * from "./station.js";
