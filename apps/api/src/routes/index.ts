@@ -3,7 +3,7 @@ import { rateLimit } from "#middleware/rate-limit.js";
 import { resolveVenue } from "#middleware/venue.js";
 import { venueRouter } from "#modules/venue/route.js";
 import { availabilityRouter } from "#modules/availability/route.js";
-import { createHold, releaseHoldRoute } from "#routes/holds.js";
+import { holdRouter } from "#modules/hold/route.js";
 import { cancelBooking, createBooking, getBooking } from "#routes/bookings.js";
 
 // Every /v1 route is scoped to a venue, so resolution mounts once here
@@ -12,6 +12,8 @@ const router = Router();
 
 router.use("/venues/:venueSlug", resolveVenue, venueRouter, availabilityRouter);
 
+// Rate limiting must run after resolveVenue (it keys on req.venue) and
+// before any of the routes below dispatch to a handler.
 router.post(
   [
     "/venues/:venueSlug/holds",
@@ -21,8 +23,7 @@ router.post(
   rateLimit,
 );
 
-router.post("/venues/:venueSlug/holds", createHold);
-router.post("/venues/:venueSlug/holds/release", releaseHoldRoute);
+router.use("/venues/:venueSlug", holdRouter);
 router.post("/venues/:venueSlug/bookings", createBooking);
 router.get("/venues/:venueSlug/bookings/:bookingId", getBooking);
 router.post("/venues/:venueSlug/bookings/:bookingId/cancel", cancelBooking);

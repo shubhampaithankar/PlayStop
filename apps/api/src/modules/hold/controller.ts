@@ -4,11 +4,11 @@ import { ObjectId } from "mongodb";
 import { createHoldRequestSchema, releaseHoldRequestSchema, type CreateHoldResponse } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
 import { env } from "#env.js";
-import { collections } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
-import { acquireHold, releaseHold } from "#holds.js";
 import { requireVenue } from "#middleware/venue.js";
+import { findStationById } from "#modules/venue/data.js";
 import { cellStartsForRange, resolveRange } from "#modules/venue/utils.js";
+import { acquireHold, findConfirmedClaimInRange, releaseHold } from "#modules/hold/data.js";
 
 export async function createHold(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -18,9 +18,7 @@ export async function createHold(req: Request, res: Response): Promise<void> {
   }
   const { stationId, startsAt, slotCount } = parsed.data;
 
-  const station = await collections
-    .stations()
-    .findOne({ _id: new ObjectId(stationId), venueId: venue._id, status: "active" });
+  const station = await findStationById(new ObjectId(stationId), venue._id);
   if (!station) throw new DomainError("STATION_NOT_FOUND", 404, "No active station matches that id.");
 
   if (slotCount < station.minSlots || slotCount > station.maxSlots) {
@@ -37,14 +35,7 @@ export async function createHold(req: Request, res: Response): Promise<void> {
   // never sees and never holds.
   const { playMs } = resolveRange(venue, station, startsAtMs, slotCount, 0, nowMs);
 
-  // Courtesy check, not a lock: an accurate error for the common case
-  // before touching Redis. The real backstop is uniq_slot_claim at confirm.
-  const existingClaim = await collections.slotClaims().findOne({
-    venueId: venue._id,
-    stationId: station._id,
-    cellStart: { $in: playMs.map((ms) => new Date(ms)) },
-    status: "confirmed",
-  });
+  const existingClaim = await findConfirmedClaimInRange(venue._id, station._id, playMs);
   if (existingClaim) {
     throw new DomainError("SLOT_TAKEN", 409, "Part of that time is already booked.");
   }

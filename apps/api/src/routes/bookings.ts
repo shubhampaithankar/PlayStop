@@ -11,11 +11,12 @@ import {
 import { priceBooking } from "@playstop/engine";
 import { collections, mongoClient, type BookingDoc, type SlotClaimDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
-import { releaseHold, mgetHolds } from "#holds.js";
 import { generateConfirmationCode } from "#lib/confirmationCode.js";
 import { abandonClaim, claimIdempotency, finalizeFailure, hashRequest } from "#lib/idempotency.js";
 import { requireVenue } from "#middleware/venue.js";
+import { findStationById } from "#modules/venue/data.js";
 import { localLabelOf, resolveRange } from "#modules/venue/utils.js";
+import { mgetHolds, releaseHold } from "#modules/hold/data.js";
 
 function toBookingResponse(
   booking: Pick<
@@ -163,9 +164,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   const idemId = claim.id;
 
   try {
-    const station = await collections
-      .stations()
-      .findOne({ _id: new ObjectId(body.stationId), venueId: venue._id, status: "active" });
+    const station = await findStationById(new ObjectId(body.stationId), venue._id);
     if (!station) {
       throw new DomainError("STATION_NOT_FOUND", 404, "No active station matches that id.");
     }

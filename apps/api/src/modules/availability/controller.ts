@@ -8,8 +8,8 @@ import {
   type StationInput as EngineStationInput,
 } from "@playstop/engine";
 import { DomainError } from "#errors.js";
-import { scanVenueHolds } from "#holds.js";
 import { requireVenue } from "#middleware/venue.js";
+import { scanVenueHolds } from "#modules/hold/data.js";
 import { venueScheduleOf } from "#modules/venue/utils.js";
 import { findConfirmedClaims, findStationsForAvailability } from "#modules/availability/data.js";
 

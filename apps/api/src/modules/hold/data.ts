@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 import { env } from "#env.js";
+import { collections, type SlotClaimDoc } from "#libs/mongo/index.js";
 import { redis, tryRedis } from "#libs/redis/index.js";
 
 // ps:{env}:{venueId}:hold:{stationId}:{cellStartEpochMs}. Every key on this
@@ -84,4 +85,19 @@ export async function mgetHolds(
   const keys = cellStartsMs.map((ms) => holdKey(venueId, stationId, ms));
   const { value, degraded } = await tryRedis(() => redis.mget(...keys), keys.map(() => null));
   return { values: value, degraded };
+}
+
+// Courtesy check, not a lock: an accurate error for the common case before
+// touching Redis. The real backstop is uniq_slot_claim at confirm.
+export function findConfirmedClaimInRange(
+  venueId: ObjectId,
+  stationId: ObjectId,
+  cellStartsMs: readonly number[],
+): Promise<SlotClaimDoc | null> {
+  return collections.slotClaims().findOne({
+    venueId,
+    stationId,
+    cellStart: { $in: cellStartsMs.map((ms) => new Date(ms)) },
+    status: "confirmed",
+  });
 }
