@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import type { CreateHoldResponse } from "@playstop/types";
-import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testSupport.js";
+import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testing-support.js";
 
 let server: TestServer;
 let venue: TestVenue;

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { ObjectId } from "mongodb";
 import type { AvailabilityResponse, BookingResponse } from "@playstop/types";
 import { collections } from "#db.js";
-import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testSupport.js";
+import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testing-support.js";
 
 let server: TestServer;
 let venue: TestVenue;

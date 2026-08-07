@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AvailabilityResponse, VenueResponse } from "@playstop/types";
-import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testSupport.js";
+import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testing-support.js";
 
 // Layer 2 (spec section 9): shared Atlas dev database, one venue per file
 // under a unique slug, no more than a handful of sequential requests.
