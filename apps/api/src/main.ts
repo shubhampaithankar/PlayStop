@@ -1,6 +1,7 @@
-import { createIndexes, connectMongo } from "#db.js";
+import { connectMongo } from "#libs/mongo/index.js";
+import { createIndexes } from "#libs/mongo/indexes.js";
 import { env } from "#env.js";
-import { waitForRedisReady } from "#redis.js";
+import { waitForRedisReady } from "#libs/redis/index.js";
 import { buildApp } from "#app.js";
 
 async function main(): Promise<void> {

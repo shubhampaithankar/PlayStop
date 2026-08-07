@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
-import { collections, connectMongo, createIndexes, mongoClient } from "#db.js";
-import type { OpeningHours, StationDoc } from "#db.js";
+import { collections, connectMongo, mongoClient } from "#libs/mongo/index.js";
+import { createIndexes } from "#libs/mongo/indexes.js";
+import type { OpeningHours, StationDoc } from "#libs/mongo/index.js";
 
 const GRID_MINUTES = 30;
 

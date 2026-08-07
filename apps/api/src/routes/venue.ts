@@ -8,7 +8,7 @@ import {
   type OccupiedCell,
   type StationInput as EngineStationInput,
 } from "@playstop/engine";
-import { collections, type VenueDoc } from "#db.js";
+import { collections, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { scanVenueHolds } from "#holds.js";
 import { venueScheduleOf } from "#lib/gridLookup.js";

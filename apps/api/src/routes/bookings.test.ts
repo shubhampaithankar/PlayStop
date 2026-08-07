@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import type { BookingResponse, CreateHoldResponse } from "@playstop/types";
-import { collections } from "#db.js";
+import { collections } from "#libs/mongo/index.js";
 import { hashRequest } from "#lib/idempotency.js";
 import { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue, type TestServer, type TestVenue } from "#testing-support.js";
 

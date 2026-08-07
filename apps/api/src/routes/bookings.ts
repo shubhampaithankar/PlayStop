@@ -9,7 +9,7 @@ import {
   type BookingResponse,
 } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
-import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type VenueDoc } from "#db.js";
+import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { releaseHold, mgetHolds } from "#holds.js";
 import { generateConfirmationCode } from "#lib/confirmationCode.js";

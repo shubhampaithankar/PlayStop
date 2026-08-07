@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { createHoldRequestSchema, releaseHoldRequestSchema, type CreateHoldResponse } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
 import { env } from "#env.js";
-import { collections, type VenueDoc } from "#db.js";
+import { collections, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { acquireHold, releaseHold } from "#holds.js";
 import { cellStartsForRange, resolveRange } from "#lib/gridLookup.js";

@@ -6,7 +6,7 @@ import {
   SlotOutOfWindowError,
   type VenueSchedule,
 } from "@playstop/engine";
-import type { StationDoc, VenueDoc } from "#db.js";
+import type { StationDoc, VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 
 export type EngineVenueSchedule = VenueSchedule & { leadTimeMinutes: number; maxAdvanceDays: number };

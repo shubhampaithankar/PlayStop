@@ -1,7 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import type { HealthResponse } from "@playstop/types";
-import { pingMongo } from "#db.js";
+import { pingMongo } from "#libs/mongo/index.js";
 import { env } from "#env.js";
 import { errorHandler } from "#middleware/error-handler.js";
 import { notFoundHandler } from "#middleware/not-found.js";

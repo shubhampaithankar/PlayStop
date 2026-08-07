@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { MongoServerError, type ObjectId } from "mongodb";
-import { collections } from "#db.js";
+import { collections } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 
 // Sorts object keys recursively so two orderings of the same object hash

@@ -7,9 +7,10 @@ import type { Express } from "express";
 import { DateTime } from "luxon";
 import { ObjectId } from "mongodb";
 import { generateSlotGrid, type VenueSchedule } from "@playstop/engine";
-import { collections, connectMongo, createIndexes, mongoClient, type OpeningHours, type StationDoc } from "#db.js";
+import { collections, connectMongo, mongoClient, type OpeningHours, type StationDoc } from "#libs/mongo/index.js";
+import { createIndexes } from "#libs/mongo/indexes.js";
 import { env } from "#env.js";
-import { redis, waitForRedisReady } from "#redis.js";
+import { redis, waitForRedisReady } from "#libs/redis/index.js";
 import { buildApp } from "#app.js";
 
 let mongoReady: Promise<void> | undefined;

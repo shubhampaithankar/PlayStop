@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { collections, type VenueDoc } from "#db.js";
+import { collections, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 
 declare global {
