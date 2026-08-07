@@ -4,15 +4,11 @@ import { ObjectId } from "mongodb";
 import { createHoldRequestSchema, releaseHoldRequestSchema, type CreateHoldResponse } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
 import { env } from "#env.js";
-import { collections, type VenueDoc } from "#libs/mongo/index.js";
+import { collections } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { acquireHold, releaseHold } from "#holds.js";
-import { cellStartsForRange, resolveRange } from "#lib/gridLookup.js";
-
-function requireVenue(req: Request): VenueDoc {
-  if (!req.venue) throw new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug.");
-  return req.venue;
-}
+import { requireVenue } from "#middleware/venue.js";
+import { cellStartsForRange, resolveRange } from "#modules/venue/utils.js";
 
 export async function createHold(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);

@@ -9,17 +9,13 @@ import {
   type BookingResponse,
 } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
-import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type VenueDoc } from "#libs/mongo/index.js";
+import { collections, mongoClient, type BookingDoc, type SlotClaimDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { releaseHold, mgetHolds } from "#holds.js";
 import { generateConfirmationCode } from "#lib/confirmationCode.js";
-import { localLabelOf, resolveRange } from "#lib/gridLookup.js";
 import { abandonClaim, claimIdempotency, finalizeFailure, hashRequest } from "#lib/idempotency.js";
-
-function requireVenue(req: Request): VenueDoc {
-  if (!req.venue) throw new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug.");
-  return req.venue;
-}
+import { requireVenue } from "#middleware/venue.js";
+import { localLabelOf, resolveRange } from "#modules/venue/utils.js";
 
 function toBookingResponse(
   booking: Pick<

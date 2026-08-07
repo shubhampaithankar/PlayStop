@@ -11,6 +11,13 @@ declare global {
   }
 }
 
+// Every module handler calls this instead of restating the same
+// req.venue-or-throw check.
+export function requireVenue(req: Request): VenueDoc {
+  if (!req.venue) throw new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug.");
+  return req.venue;
+}
+
 // Resolves the slug to a venue document once and attaches it. Every
 // downstream handler reads venueId from req.venue, never from the request
 // body or query: this is the single tenant-resolution point.

@@ -1,52 +1,17 @@
 import { DateTime } from "luxon";
 import type { Request, Response } from "express";
-import { ObjectId } from "mongodb";
-import { availabilityQuerySchema, type AvailabilityResponse, type VenueResponse } from "@playstop/types";
+import { availabilityQuerySchema, type AvailabilityResponse } from "@playstop/types";
 import {
   computeAvailability,
   generateSlotGrid,
   type OccupiedCell,
   type StationInput as EngineStationInput,
 } from "@playstop/engine";
-import { collections, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { scanVenueHolds } from "#holds.js";
-import { venueScheduleOf } from "#lib/gridLookup.js";
-
-function requireVenue(req: Request): VenueDoc {
-  if (!req.venue) throw new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug.");
-  return req.venue;
-}
-
-export async function getVenue(req: Request, res: Response): Promise<void> {
-  const venue = requireVenue(req);
-  const stations = await collections.stations().find({ venueId: venue._id, status: "active" }).toArray();
-
-  const body: VenueResponse = {
-    id: venue._id.toHexString(),
-    slug: venue.slug,
-    name: venue.name,
-    timezone: venue.timezone,
-    gridMinutes: venue.gridMinutes,
-    bufferMinutes: venue.bufferMinutes,
-    currency: venue.currency,
-    openingHours: venue.openingHours,
-    blackoutDates: venue.blackoutDates,
-    leadTimeMinutes: venue.leadTimeMinutes,
-    maxAdvanceDays: venue.maxAdvanceDays,
-    stations: stations.map((s) => ({
-      id: s._id.toHexString(),
-      slug: s.slug,
-      name: s.name,
-      kind: s.kind,
-      capacity: s.capacity,
-      hourlyRateMinor: s.hourlyRateMinor,
-      minSlots: s.minSlots,
-      maxSlots: s.maxSlots,
-    })),
-  };
-  res.json(body);
-}
+import { requireVenue } from "#middleware/venue.js";
+import { venueScheduleOf } from "#modules/venue/utils.js";
+import { findConfirmedClaims, findStationsForAvailability } from "#modules/availability/data.js";
 
 export async function getAvailability(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -66,10 +31,7 @@ export async function getAvailability(req: Request, res: Response): Promise<void
     throw new DomainError("DATE_OUT_OF_RANGE", 422, "That date is outside the bookable range.");
   }
 
-  const stationFilter: Record<string, unknown> = { venueId: venue._id, status: "active" };
-  if (stationId) stationFilter._id = new ObjectId(stationId);
-  if (kind) stationFilter.kind = kind;
-  const stationDocs = await collections.stations().find(stationFilter).toArray();
+  const stationDocs = await findStationsForAvailability(venue._id, stationId, kind);
   const stations: EngineStationInput[] = stationDocs.map((s) => ({
     stationId: s._id.toHexString(),
     slug: s.slug,
@@ -94,18 +56,7 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   // Closed venue: no cells exist, so the Mongo and Redis reads are skipped
   // entirely (spec section 2); windowStartMs/windowEndMs are informational.
   if (grid.kind === "open") {
-    const claimDocs = await collections
-      .slotClaims()
-      .find(
-        {
-          venueId: venue._id,
-          cellStart: { $gte: new Date(grid.windowStartMs), $lt: new Date(grid.windowEndMs) },
-          status: "confirmed",
-        },
-        { projection: { stationId: 1, cellStart: 1, _id: 0 } },
-      )
-      .toArray();
-    claims = claimDocs.map((c) => ({ stationId: c.stationId.toHexString(), cellStartMs: c.cellStart.getTime() }));
+    claims = await findConfirmedClaims(venue._id, grid.windowStartMs, grid.windowEndMs);
 
     const scan = await scanVenueHolds(venue._id);
     degraded = scan.degraded;
