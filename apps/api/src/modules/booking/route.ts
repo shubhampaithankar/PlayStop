@@ -4,6 +4,6 @@ import { cancelBooking, createBooking, getBooking } from "#modules/booking/contr
 
 export const bookingRouter = Router({ mergeParams: true });
 
-bookingRouter.post("/bookings", rateLimit, createBooking);
-bookingRouter.get("/bookings/:bookingId", getBooking);
-bookingRouter.post("/bookings/:bookingId/cancel", rateLimit, cancelBooking);
+bookingRouter.post("/", rateLimit, createBooking);
+bookingRouter.get("/:bookingId", getBooking);
+bookingRouter.post("/:bookingId/cancel", rateLimit, cancelBooking);
