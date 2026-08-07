@@ -1,138 +1,28 @@
 import type { Request, Response } from "express";
-import { MongoOperationTimeoutError, MongoServerError, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import {
   cancelBookingRequestSchema,
-  type CreateBookingRequest,
   createBookingRequestSchema,
   getBookingQuerySchema,
   idempotencyKeySchema,
-  type BookingResponse,
 } from "@playstop/types";
 import { priceBooking } from "@playstop/engine";
-import { collections, mongoClient, type BookingDoc, type SlotClaimDoc } from "#libs/mongo/index.js";
+import type { BookingDoc, SlotClaimDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
-import { generateConfirmationCode } from "#lib/confirmationCode.js";
-import { abandonClaim, claimIdempotency, finalizeFailure, hashRequest } from "#lib/idempotency.js";
 import { requireVenue } from "#middleware/venue.js";
 import { findStationById } from "#modules/venue/data.js";
-import { localLabelOf, resolveRange } from "#modules/venue/utils.js";
+import { resolveRange } from "#modules/venue/utils.js";
 import { mgetHolds, releaseHold } from "#modules/hold/data.js";
-
-function toBookingResponse(
-  booking: Pick<
-    BookingDoc,
-    | "_id"
-    | "venueId"
-    | "stationId"
-    | "startsAt"
-    | "endsAt"
-    | "slotCount"
-    | "partySize"
-    | "status"
-    | "confirmationCode"
-    | "totalMinor"
-    | "currency"
-    | "player"
-    | "createdAt"
-    | "cancelledAt"
-  >,
-  stationName: string,
-  stationKind: BookingResponse["stationKind"],
-  timezone: string,
-): BookingResponse {
-  return {
-    id: booking._id.toHexString(),
-    venueId: booking.venueId.toHexString(),
-    stationId: booking.stationId.toHexString(),
-    stationName,
-    stationKind,
-    startsAt: booking.startsAt.toISOString(),
-    endsAt: booking.endsAt.toISOString(),
-    slotCount: booking.slotCount,
-    partySize: booking.partySize,
-    localLabel: localLabelOf(booking.startsAt.getTime(), timezone),
-    status: booking.status,
-    confirmationCode: booking.confirmationCode,
-    totalMinor: booking.totalMinor,
-    currency: booking.currency,
-    player: booking.player,
-    createdAt: booking.createdAt.toISOString(),
-    cancelledAt: booking.cancelledAt ? booking.cancelledAt.toISOString() : null,
-  };
-}
-
-// Zod's .optional() infers `T | undefined`, which exactOptionalPropertyTypes
-// rejects when assigned directly onto BookingPlayer's `email?: string`
-// (present-with-undefined is a different thing than absent). Build the
-// document field by omission instead of ever storing an explicit undefined.
-function toBookingPlayer(player: CreateBookingRequest["player"]): BookingDoc["player"] {
-  const result: BookingDoc["player"] = { name: player.name };
-  if (player.email !== undefined) result.email = player.email;
-  if (player.phone !== undefined) result.phone = player.phone;
-  return result;
-}
-interface BuiltConfirmDocs {
-  readonly bookingDoc: BookingDoc;
-  readonly claimDocs: SlotClaimDoc[];
-  readonly responseBody: BookingResponse;
-}
-
-/**
- * The transaction, exactly per spec section 4 step 10, plus the 11000 catch
- * disambiguated by index name and the confirmation-code collision retry.
- * buildDocs is called once per attempt, generating a fresh bookingId and
- * confirmationCode: the driver's own internal transient-error retries reuse
- * the same built documents (transaction hygiene), but a genuine code
- * collision is a different attempt with different documents by design.
- */
-async function runConfirmTransaction(
-  idemId: string,
-  buildDocs: () => BuiltConfirmDocs,
-  attempt = 1,
-): Promise<{ responseBody: BookingResponse }> {
-  const { bookingDoc, claimDocs, responseBody } = buildDocs();
-  const session = mongoClient().startSession();
-  try {
-    await session.withTransaction(
-      async () => {
-        await collections.bookings().insertOne(bookingDoc, { session });
-        await collections.slotClaims().insertMany(claimDocs, { session, ordered: true });
-        await collections.idempotency().updateOne(
-          { _id: idemId },
-          { $set: { state: "completed", statusCode: 201, response: responseBody, bookingId: bookingDoc._id } },
-          { session },
-        );
-      },
-      { readConcern: { level: "local" }, writeConcern: { w: "majority" }, readPreference: "primary", timeoutMS: 8000 },
-    );
-    return { responseBody };
-  } catch (err) {
-    if (
-      attempt === 1 &&
-      err instanceof MongoServerError &&
-      err.code === 11000 &&
-      err.message.includes("uniq_booking_code")
-    ) {
-      return runConfirmTransaction(idemId, buildDocs, 2);
-    }
-    if (err instanceof MongoOperationTimeoutError) {
-      throw new DomainError("BOOKING_TIMEOUT", 503, "Could not confirm in time. Try again.", undefined, {
-        "Retry-After": "2",
-      });
-    }
-    if (err instanceof MongoServerError && err.code === 11000) {
-      if (err.message.includes("uniq_slot_claim")) {
-        throw new DomainError("SLOT_TAKEN", 409, "Part of that time was just booked by someone else.");
-      }
-      if (err.message.includes("uniq_booking_code")) {
-        throw new DomainError("INTERNAL", 500, "Could not generate a unique confirmation code.");
-      }
-    }
-    throw err;
-  } finally {
-    await session.endSession();
-  }
-}
+import { generateConfirmationCode, toBookingPlayer, toBookingResponse } from "#modules/booking/utils.js";
+import { abandonClaim, claimIdempotency, finalizeFailure, hashRequest } from "#modules/booking/idempotency.js";
+import {
+  findBookingByConfirmationCode,
+  findBookingById,
+  findBookingStation,
+  runCancelTransaction,
+  runConfirmTransaction,
+  type BuiltConfirmDocs,
+} from "#modules/booking/data.js";
 
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -291,19 +181,13 @@ export async function getBooking(req: Request, res: Response): Promise<void> {
   if (typeof bookingIdParam !== "string" || !ObjectId.isValid(bookingIdParam)) {
     throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
   }
-  const booking = await collections.bookings().findOne({
-    _id: new ObjectId(bookingIdParam),
-    venueId: venue._id,
-    confirmationCode: parsed.data.code,
-  });
+  const booking = await findBookingByConfirmationCode(new ObjectId(bookingIdParam), venue._id, parsed.data.code);
   if (!booking) throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
 
-  const station = await collections.stations().findOne({ _id: booking.stationId });
+  const station = await findBookingStation(booking.stationId);
   if (!station) throw new Error("station referenced by booking not found");
   res.json(toBookingResponse(booking, station.name, station.kind, venue.timezone));
 }
-
-class ConcurrentCancelError extends Error {}
 
 export async function cancelBooking(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -320,10 +204,10 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   const bookingId = new ObjectId(bookingIdParam);
   const { confirmationCode } = parsed.data;
 
-  const booking = await collections.bookings().findOne({ _id: bookingId, venueId: venue._id, confirmationCode });
+  const booking = await findBookingByConfirmationCode(bookingId, venue._id, confirmationCode);
   if (!booking) throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
 
-  const station = await collections.stations().findOne({ _id: booking.stationId });
+  const station = await findBookingStation(booking.stationId);
   if (!station) throw new Error("station referenced by booking not found");
 
   // Idempotent: already cancelled returns 200 with the record as-is.
@@ -338,43 +222,10 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   }
 
   const cancelledAt = new Date();
-  let lostRace = false;
-  const session = mongoClient().startSession();
-  try {
-    await session.withTransaction(
-      async () => {
-        const updateResult = await collections.bookings().updateOne(
-          { _id: bookingId, venueId: venue._id, status: "confirmed" },
-          { $set: { status: "cancelled", cancelledAt } },
-          { session },
-        );
-        // A concurrent cancel won the race on this document: Mongo
-        // serializes the two updateOne calls, so exactly one matches.
-        if (updateResult.matchedCount === 0) throw new ConcurrentCancelError();
-        await collections.slotClaims().updateMany(
-          { venueId: venue._id, stationId: booking.stationId, bookingId, status: "confirmed" },
-          { $set: { status: "cancelled" } },
-          { session },
-        );
-      },
-      { readConcern: { level: "local" }, writeConcern: { w: "majority" }, readPreference: "primary", timeoutMS: 8000 },
-    );
-  } catch (err) {
-    if (err instanceof ConcurrentCancelError) {
-      lostRace = true;
-    } else if (err instanceof MongoOperationTimeoutError) {
-      throw new DomainError("BOOKING_TIMEOUT", 503, "Could not cancel in time. Try again.", undefined, {
-        "Retry-After": "2",
-      });
-    } else {
-      throw err;
-    }
-  } finally {
-    await session.endSession();
-  }
+  const { lostRace } = await runCancelTransaction(bookingId, venue._id, booking.stationId, cancelledAt);
 
   const finalBooking = lostRace
-    ? await collections.bookings().findOne({ _id: bookingId, venueId: venue._id })
+    ? await findBookingById(bookingId, venue._id)
     : { ...booking, status: "cancelled" as const, cancelledAt };
   if (!finalBooking) throw new Error("booking vanished after a concurrent cancel");
   res.status(200).json(toBookingResponse(finalBooking, station.name, station.kind, venue.timezone));

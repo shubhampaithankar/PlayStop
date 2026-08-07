@@ -4,7 +4,7 @@ import { resolveVenue } from "#middleware/venue.js";
 import { venueRouter } from "#modules/venue/route.js";
 import { availabilityRouter } from "#modules/availability/route.js";
 import { holdRouter } from "#modules/hold/route.js";
-import { cancelBooking, createBooking, getBooking } from "#routes/bookings.js";
+import { bookingRouter } from "#modules/booking/route.js";
 
 // Every /v1 route is scoped to a venue, so resolution mounts once here
 // rather than being repeated per module (spec section 6).
@@ -23,9 +23,6 @@ router.post(
   rateLimit,
 );
 
-router.use("/venues/:venueSlug", holdRouter);
-router.post("/venues/:venueSlug/bookings", createBooking);
-router.get("/venues/:venueSlug/bookings/:bookingId", getBooking);
-router.post("/venues/:venueSlug/bookings/:bookingId/cancel", cancelBooking);
+router.use("/venues/:venueSlug", holdRouter, bookingRouter);
 
 export default router;
