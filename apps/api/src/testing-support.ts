@@ -10,7 +10,7 @@ import { generateSlotGrid, type VenueSchedule } from "@playstop/engine";
 import { collections, connectMongo, createIndexes, mongoClient, type OpeningHours, type StationDoc } from "#db.js";
 import { env } from "#env.js";
 import { redis, waitForRedisReady } from "#redis.js";
-import { buildApp } from "#server.js";
+import { buildApp } from "#app.js";
 
 let mongoReady: Promise<void> | undefined;
 

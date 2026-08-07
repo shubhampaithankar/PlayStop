@@ -9,9 +9,9 @@
   "scripts": {
     "dev": "pnpm run \"/^dev:/\"",
     "dev:build": "tsc -w -p tsconfig.json",
-    "dev:serve": "node --watch --env-file=.env dist/server.js",
+    "dev:serve": "node --watch --env-file=.env dist/main.js",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test --test-concurrency=1 --env-file-if-exists=.env dist/",
     "seed": "node --env-file-if-exists=.env dist/seed.js"

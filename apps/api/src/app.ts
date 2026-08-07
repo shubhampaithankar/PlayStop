@@ -1,14 +1,13 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import type { HealthResponse } from "@playstop/types";
-import { createIndexes, connectMongo, pingMongo } from "#db.js";
+import { pingMongo } from "#db.js";
 import { env } from "#env.js";
 import { errorHandler } from "#middleware/error-handler.js";
 import { notFoundHandler } from "#middleware/not-found.js";
 import { rateLimit } from "#middleware/rate-limit.js";
 import { requestId } from "#middleware/request-id.js";
 import { resolveVenue } from "#middleware/venue.js";
-import { waitForRedisReady } from "#redis.js";
 import { createHold, releaseHoldRoute } from "#routes/holds.js";
 import { cancelBooking, createBooking, getBooking } from "#routes/bookings.js";
 import { getAvailability, getVenue } from "#routes/venue.js";
@@ -61,39 +60,4 @@ export function buildApp(): Express {
   app.use(errorHandler);
 
   return app;
-}
-
-async function main(): Promise<void> {
-  // Index creation runs before the HTTP listener starts. A running API
-  // without uniq_slot_claim is a correctness hazard, so a failure here
-  // exits the process rather than serving traffic against an unsafe schema.
-  await connectMongo();
-  await createIndexes();
-
-  // Redis holds are advisory UX, never truth (section 4), so an unreachable
-  // Redis at boot degrades rather than blocking startup.
-  try {
-    await waitForRedisReady();
-  } catch (err) {
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        event: "redis_not_ready_at_boot",
-        error: err instanceof Error ? err.message : String(err),
-      }),
-    );
-  }
-
-  const app = buildApp();
-  app.listen(env.PORT, () => {
-    console.log(`api listening on port ${env.PORT}`);
-  });
-}
-
-// Only boot the server when run directly, not when imported by a test.
-if (process.argv[1] && process.argv[1].endsWith("server.js")) {
-  main().catch((err) => {
-    console.error("Fatal error during boot:", err);
-    process.exit(1);
-  });
 }
