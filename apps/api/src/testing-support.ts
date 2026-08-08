@@ -13,6 +13,12 @@ import { env } from "#env.js";
 import { redis, waitForRedisReady } from "#libs/redis/index.js";
 import { buildApp } from "#app.js";
 
+// The concurrency proof gate (spec section 9, layer 3): a fresh
+// process.env read at import time, so a developer running `pnpm test`
+// gets these files skipped rather than a throttled Atlas cluster. CI sets
+// TEST_PROFILE=ci.
+export const CI_ONLY = process.env.TEST_PROFILE === "ci";
+
 let mongoReady: Promise<void> | undefined;
 
 export function ensureMongoReady(): Promise<void> {
@@ -154,6 +160,39 @@ export function futureSessionCells(venue: TestVenue, count: number): { businessD
   if (grid.kind !== "open") throw new Error(`test venue closed on ${businessDate}: ${grid.reason}`);
   if (grid.cells.length < count) throw new Error("not enough cells in test session");
   return { businessDate, cellStartMs: grid.cells.slice(0, count).map((c) => c.cellStartMs) };
+}
+
+export interface BurstResult {
+  readonly results: PromiseSettledResult<Response>[];
+  readonly startSpreadMs: number;
+}
+
+/**
+ * Fires n HTTP requests as close to simultaneously as possible, for the
+ * concurrency proof (spec section 9). buildRequest is called and its fetch
+ * dispatched synchronously for every index in one tick, before any of them
+ * is awaited, so this genuinely overlaps requests rather than serializing
+ * them the way a `for` loop with `await fetch()` inside would.
+ *
+ * startSpreadMs is the proof: it is the gap between the first and last
+ * dispatch timestamp, taken right before each fetch() call. A loop that
+ * accidentally awaits between requests would spread dispatch across the
+ * full per-request latency (tens of ms times n); a real burst keeps it
+ * near zero.
+ */
+export async function fireBurst(
+  n: number,
+  buildRequest: (i: number) => { url: string; init: RequestInit },
+): Promise<BurstResult> {
+  const starts: number[] = new Array(n);
+  const tasks = Array.from({ length: n }, (_, i) => {
+    const { url, init } = buildRequest(i);
+    starts[i] = performance.now();
+    return fetch(url, init);
+  });
+  const results = await Promise.allSettled(tasks);
+  const startSpreadMs = Math.max(...starts) - Math.min(...starts);
+  return { results, startSpreadMs };
 }
 
 export interface TestServer {
