@@ -6,21 +6,24 @@
 ## Stack
 - Language: TypeScript 5.x, strict
 - Web: Vite + React 19 + Tailwind CSS v4 (`@tailwindcss/vite`)
-- API: Express 5 + Zod, dev and prod both run compiled output (`tsc -w` + `node --watch`)
+- API: Express 5 + Zod + MongoDB (native driver, no Mongoose) + Redis (ioredis), dev and prod
+  both run compiled output (`tsc -w` + `node --watch`)
 - Types: `packages/types` exports Zod schemas and TS types consumed by both apps
-- Engine: `packages/engine` holds shared pure logic, empty until milestone 2
+- Engine: `packages/engine` holds shared pure logic (slot grid, availability, pricing)
 - Package manager: pnpm workspaces (`packageManager` pinned in root `package.json`)
 
 ## Commands
 - `pnpm install` (root)
-- `pnpm --filter @playstop/types build` (run once, or after editing types, before `dev`/`build` elsewhere)
+- `pnpm --filter @playstop/types build` / `pnpm --filter @playstop/engine build` (run once, or
+  after editing either, before `dev`/`build`/`test` elsewhere)
 - `pnpm dev:web` (port 5173) / `pnpm dev:api` (port 3001)
-- `pnpm typecheck` / `pnpm lint` / `pnpm build`
+- `pnpm typecheck` / `pnpm lint` / `pnpm build` / `pnpm test`
+- `pnpm --filter @playstop/api seed`: seed the demo venue and stations
 
 ## Workflow
-- **Brainstorm before building** — `superpowers:brainstorming` to settle intent and design first.
-- **Docs via Context7** — query the `context7` MCP for any library/framework/API, do not trust memory.
-- **Skill before acting** — `systematic-debugging` before a bugfix, `verification-before-completion` before claiming done.
+- **Brainstorm before building**: `superpowers:brainstorming` to settle intent and design first.
+- **Docs via Context7**: query the `context7` MCP for any library/framework/API, do not trust memory.
+- **Skill before acting**: `systematic-debugging` before a bugfix, `verification-before-completion` before claiming done.
 
 ## Conventions
 - Workspace packages are scoped `@playstop/*`.
@@ -28,26 +31,49 @@
 - `apps/web` aliases `@/*` to its own `src/*`; `apps/api` aliases `#*` to its own `src/*`
   (typecheck) / `dist/*` (runtime). See `docs/ARCHITECTURE.md` for why they differ.
 - API env is parsed and validated with Zod at boot (`apps/api/src/env.ts`), invalid env fails fast.
-- No DB, no auth, no booking logic yet. Milestone 1 is scaffold only, see "Do NOT" below.
+- `apps/api/src` modules (`modules/venue`, `availability`, `hold`, `booking`) each have
+  `route.ts` → `controller.ts` → `data.ts`. A module never reaches into another module's
+  `data.ts` directly. See `docs/ARCHITECTURE.md`.
+- Redis holds are advisory UX; the Mongo unique index on `slot_claims` is the correctness
+  backstop. Never trust a hold as proof a cell is free. See `docs/milestone-2-spec.md` section 4.
+- Test file names must not match `test-*.js` / `*-test.js` / `*_test.js` / `*.test.js` unless
+  they are actual tests: `node --test`'s default glob will run anything that matches, whether or
+  not it calls `test()`. Shared test helpers live in `testing-support.ts`.
+- Any test that starts a server (`app.listen(0)`) must close it and call `closeTestResources()`
+  in a `try/finally`, not just at the end of the function. A skipped cleanup after a failed
+  assertion hangs the run instead of failing it.
 
 ## Testing
-- No test suite yet (milestone 1 is scaffold-only). Add tests starting milestone 2.
+- `node --test` against compiled output, three layers: pure-function engine tests (fast, no
+  I/O), low-volume integration tests against the shared Atlas dev database, and the concurrency
+  proof, gated behind `TEST_PROFILE=ci` and only run in CI against a real Mongo replica set and
+  Redis service container. Do not set `TEST_PROFILE=ci` locally against Atlas, it throttles at
+  100 ops/sec and the burst will produce false failures.
 
 ## Key Files
-- `apps/api/src/server.ts` — Express app, `/health` route, CORS bound to `WEB_ORIGIN`
-- `apps/api/src/env.ts` — Zod env validation, fails fast on boot with a readable error
-- `apps/web/src/App.tsx` — single page, pings `/health` on mount
-- `packages/types/src/api/health.ts` — `healthResponseSchema`, the proof the workspace link is real
+- `apps/api/src/app.ts`: Express app assembly, cross-cutting middleware, `/health`
+- `apps/api/src/env.ts`: Zod env validation, fails fast on boot with a readable error
+- `apps/api/src/libs/mongo/index.ts`: Mongo client, typed collections, boot-time `createIndexes`
+- `apps/api/src/libs/redis/index.ts`: ioredis client, the hold acquire/release Lua scripts
+- `apps/web/src/App.tsx`: single page, pings `/health` on mount
+- `packages/engine/src/grid.ts`: `generateSlotGrid`, the DST- and midnight-crossing-aware core
+- `scripts/assert-replica-set.mjs`: gates CI: proves the Mongo it's pointed at supports
+  transactions before the suite runs
 
 ## Reference
 - @.claude/rules/lang.md
-- @README.md — local dev and deploy steps (Cloudflare Pages, Render, keepalive ping)
-- @docs/ARCHITECTURE.md — layout, dependency direction, deployment topology
+- @README.md: local dev and deploy steps (Cloudflare Pages, Render, keepalive ping)
+- @docs/ARCHITECTURE.md: layout, dependency direction, deployment topology, hard-won lessons
+- @docs/milestone-2-spec.md: the booking design: data model, concurrency, API contract, tests
 
 ## Do NOT
-- Add shadcn/ui, TanStack Router/Query/Table, MongoDB, Mongoose, Redis, Docker, Turborepo,
-  tests, auth, or booking logic. Those are milestone 2, adding them now is scope creep.
+- Add shadcn/ui, TanStack Router/Query/Table, auth, or accounts. Those are milestone 3, adding
+  them now is scope creep.
+- Add Docker. There is no local database by design, dev runs against the shared Atlas/Upstash
+  infrastructure. See `docs/milestone-2-spec.md` section 8.
 - Add a new dependency without checking `packages/types` and existing workspace deps first.
+- Weaken or skip the concurrency proof (Test A / Test I in `docs/milestone-2-spec.md` section 9)
+  to make it pass faster or more reliably. It is the test the milestone rests on.
 
 ## On compaction, preserve
 - modified-files list, test commands and results, current plan, unresolved errors

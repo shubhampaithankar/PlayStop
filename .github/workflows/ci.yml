@@ -50,6 +50,10 @@ jobs:
         with:
           mongodb-version: 8.0
           mongodb-replica-set: rs0
+      - name: Assert the replica set supports transactions
+        run: node scripts/assert-replica-set.mjs
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
       - run: pnpm test
         env:
           TEST_PROFILE: ci

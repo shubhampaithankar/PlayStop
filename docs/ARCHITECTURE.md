@@ -6,90 +6,142 @@ pnpm workspace monorepo, three packages:
 
 ```
 apps/web          Vite + React 19 + TypeScript + Tailwind CSS v4, one page
-apps/api          Express 5 + TypeScript + Zod, one route (/health)
+apps/api          Express 5 + TypeScript + Zod, MongoDB + Redis, the booking API
 packages/types    Zod schemas and TypeScript types shared by both apps
-packages/engine   Shared pure logic (empty placeholder, milestone 2 fills it)
+packages/engine   Shared pure logic: slot grid, availability, pricing
 ```
 
 Each has its own `README.md` for specifics. This file is the map between them.
 
+## `apps/api/src` layout
+
+```
+app.ts, main.ts       Express app assembly, and the process entry point
+env.ts                 Zod env validation, fails fast on boot
+errors.ts              DomainError, the one error type routes throw
+libs/
+  mongo/                connect, typed collection accessors, boot-time createIndexes
+  redis/                ioredis client, the two Lua hold scripts, tryRedis wrapper
+  sentry/               Sentry.init (no-op with no SENTRY_DSN) and the error handler
+middleware/            request-id, request-logger (morgan), rate-limit, venue
+                        resolution, error-handler, not-found
+modules/
+  venue/, availability/, hold/, booking/
+                        one folder per resource: route.ts, controller.ts, data.ts
+routes/                index.ts mounts /v1/venues/:venueSlug, slug-router.ts
+                        wires the four module routers under it
+seed.ts                 inserts the demo venue and its stations, idempotent
+testing-support.ts      shared test helpers (see "Test file naming" below)
+```
+
+Module convention: `route.ts` wires Express paths to a controller, `controller.ts` validates
+with Zod and orchestrates, `data.ts` holds the Mongo queries for that resource. A module never
+reaches into another module's `data.ts` directly, it goes through the controller.
+
 ## Dependency direction
 
-`apps/web` and `apps/api` both depend on `packages/types`. `packages/engine`
-may depend on `packages/types` once it has functions that take or return
-shaped data, but not on either app. `packages/types` depends on neither
-`apps/*` nor `packages/engine`. The direction only ever goes app or engine
+`apps/web` and `apps/api` both depend on `packages/types`. `packages/engine` depends on
+`packages/types` for the shapes it takes and returns, and on nothing in `apps/*`. `packages/types`
+depends on neither `apps/*` nor `packages/engine`. The direction only ever goes app or engine
 toward types, never the reverse.
 
-Any shape that crosses the web-to-api network boundary is defined once in
-`packages/types/src/api/` and imported on both sides, never redefined
-locally. Shared domain types that aren't network contracts live in
-`packages/types/src/common/`.
+Any shape that crosses the web-to-api network boundary is defined once in `packages/types/src/api/`
+and imported on both sides, never redefined locally. Shared domain types that aren't network
+contracts live in `packages/types/src/common/`.
 
 ## Module aliases
 
 Three separate mechanisms, chosen per what each context can actually read:
 
-- `apps/web/src/*` → `@/*`. Both a `paths` entry in `tsconfig.json` (so
-  typecheck and editors resolve it) and a `resolve.alias` entry in
-  `vite.config.ts` (so the bundle resolves it). Vite does not read tsconfig
-  `paths`, the two have to be kept in sync by hand.
-- `apps/api/src/*` → `#*` (e.g. `#env.js`). A `paths` entry in
-  `tsconfig.json` for typecheck, plus Node's native `package.json` `imports`
-  field (`"#*": "./dist/*"`) for runtime resolution. `tsc` never rewrites
-  import specifiers on emit, so without the `imports` field a `#`-prefixed
-  import would typecheck and then throw at runtime. The pattern is `#*`, not
-  `#/*`: Node's ESM loader rejects any specifier starting literally with
-  `#/` (`ERR_INVALID_MODULE_SPECIFIER`), verified directly, not assumed.
-  Because runtime resolution points at `dist/`, `apps/api`'s `dev` script
-  also runs from `dist/` (`tsc -w` alongside `node --watch dist/server.js`)
-  rather than running the TypeScript source directly, one resolution path
-  instead of two.
-- `@playstop/types` and `@playstop/engine` need no path alias at all, pnpm
-  workspace linking already resolves them by package name.
+- `apps/web/src/*` → `@/*`. Both a `paths` entry in `tsconfig.json` (so typecheck and editors
+  resolve it) and a `resolve.alias` entry in `vite.config.ts` (so the bundle resolves it). Vite
+  does not read tsconfig `paths`, the two have to be kept in sync by hand.
+- `apps/api/src/*` → `#*` (e.g. `#env.js`, `#libs/mongo/index.js`). A `paths` entry in
+  `tsconfig.json` for typecheck, plus Node's native `package.json` `imports` field
+  (`"#*": "./dist/*"`) for runtime resolution. `tsc` never rewrites import specifiers on emit, so
+  without the `imports` field a `#`-prefixed import would typecheck and then throw at runtime. The
+  pattern is `#*`, not `#/*`: Node's ESM loader rejects any specifier starting literally with `#/`
+  (`ERR_INVALID_MODULE_SPECIFIER`), verified directly, not assumed. Because runtime resolution
+  points at `dist/`, `apps/api`'s `dev` script also runs from `dist/` (`tsc -w` alongside
+  `node --watch dist/main.js`) rather than running the TypeScript source directly, one resolution
+  path instead of two.
+- `@playstop/types` and `@playstop/engine` need no path alias at all, pnpm workspace linking
+  already resolves them by package name.
 
 ## Deployment topology
 
-- `apps/web` deploys to Cloudflare Pages (dashboard-configured, see root
-  `README.md`).
-- `apps/api` deploys to Render as a free web service (`render.yaml` at the
-  repo root).
-- Pages talks to Render over HTTPS via `VITE_API_URL`. Render's `WEB_ORIGIN`
-  env var is set to the Pages URL and used for CORS.
-- MongoDB Atlas M0 and Upstash Redis, both in the Singapore region alongside
-  Render, back both production and local development. There is no local
-  database and no Docker Compose. Dev and prod are separate database names on
-  the same Atlas cluster (`playstop_dev` and `playstop`), with a scoped Atlas
-  user so dev credentials cannot reach the prod database.
-- Atlas M0 throttles at 100 operations/second, so the concurrency test suite
-  cannot run against it. That suite runs in CI only, against GitHub Actions
-  service containers (a real Mongo replica set and a real Redis). See
-  `docs/milestone-2-spec.md` section 9.
-- Render free spins down after 15 minutes idle. An external keepalive ping to
-  `/health` is the mitigation, see the root `README.md`.
+- `apps/web` deploys to Cloudflare Pages (dashboard-configured, see root `README.md`).
+- `apps/api` deploys to Render as a free web service (`render.yaml` at the repo root).
+- Pages talks to Render over HTTPS via `VITE_API_URL`. Render's `WEB_ORIGIN` env var is set to
+  the Pages URL and used for CORS.
+- MongoDB Atlas M0 and Upstash Redis, both in the Singapore region alongside Render, back both
+  production and local development. There is no local database and no Docker. Dev and prod are
+  separate database names on the same Atlas cluster (`playstop_dev` and `playstop`), with a
+  scoped Atlas user per database so dev credentials cannot reach the prod database.
+- Atlas M0 throttles at 100 operations/second, so the concurrency test suite cannot run against
+  it. That suite runs in CI only, against GitHub Actions service containers (a real Mongo replica
+  set and a real Redis). See `docs/milestone-2-spec.md` section 9.
+- Render free spins down after 15 minutes idle. An external keepalive ping to `/health` is the
+  mitigation, see the root `README.md`. `/health` also pings Mongo (shallow), so the same ping
+  keeps the Atlas cluster from auto-pausing after 30 idle days.
+- Sentry captures unhandled 5xx errors and errors with no status code. Expected outcomes (404,
+  409, 422, 429) are filtered out in `libs/sentry/index.ts`, they are normal traffic, not bugs.
+  Off entirely with no `SENTRY_DSN` set (local dev, CI).
 
 ## Package manager
 
-The workspace uses pnpm's `hoisted` node linker (`node-linker=hoisted` in
-`.npmrc`) so all installed packages live under one root `node_modules`
-instead of duplicated per package. Tradeoff: this gives up pnpm's default
-strict isolation, a package can end up resolving a dependency it never
-declared in its own `package.json`.
+The workspace uses pnpm's `hoisted` node linker (`node-linker=hoisted` in `.npmrc`) so all
+installed packages live under one root `node_modules` instead of duplicated per package.
+Tradeoff: this gives up pnpm's default strict isolation, a package can end up resolving a
+dependency it never declared in its own `package.json`.
+
+## Things that cost real debugging time
+
+Worth knowing before touching this code again.
+
+- **Test files must not match Node's test glob unless they are tests.** `node --test`'s default
+  glob picks up any file named `test-*.js`, `*-test.js`, `*_test.js`, or `*.test.js`. The shared
+  test harness is `testing-support.ts`, not `test-support.ts`, for exactly this reason: named
+  `test-support.ts` it was picked up and executed as a suite by the runner, and because it opens
+  a Redis connection as an import-time side effect, the run deadlocked instead of failing loudly.
+- **Every test that starts a server must release it in `try/finally`.** Otherwise a failed
+  assertion mid-test skips `server.close()` and `closeTestResources()`, the Mongo pool and the
+  ioredis socket stay open, the event loop never drains, and a test *failure* becomes a silent
+  *hang*. This cost an 80 minute CI run before the pattern was applied everywhere a server starts.
+- **The concurrency suite is gated behind `TEST_PROFILE=ci`.** Atlas M0 throttles at 100
+  operations/second. A 50-way concurrent burst against it produces failures indistinguishable
+  from the race conditions the suite exists to catch, so it only runs against CI's real replica
+  set and Redis service containers, never against the shared Atlas dev database.
+- **The concurrency tests raise `RATE_LIMIT_MAX_REQUESTS` before importing the app.** The real
+  30/minute limit would reject requests 31 through 50 of a 50-way burst on one venue, so the test
+  would measure the rate limiter instead of the unique index. `env.ts` and the rate limiter both
+  read `process.env` once at import time, so the override has to land before the dynamic
+  `import()` of the app modules, not just before the fetch calls.
+- **`build` cleans `dist/` first.** `tsc` does not delete stale output on its own, so a source
+  file that moved or was deleted leaves its old compiled `.js` (and any `.test.js` next to it)
+  behind in `dist/`, and `node --test dist/` keeps running it.
+- **Local dev on Windows may need Atlas's non-SRV connection string.** Node's DNS resolver can
+  fall back to `127.0.0.1` when it cannot parse Windows DNS config, which breaks
+  `mongodb+srv://` with `querySrv ECONNREFUSED` while `dns.lookup` and outbound TCP both work
+  fine. The long-form `mongodb://host1,host2,host3/?replicaSet=...` string avoids SRV entirely.
+  Render is unaffected, it uses SRV. See `apps/api/.env.example`.
+- **ioredis rejects commands issued before the client is ready.** With `enableOfflineQueue: false`
+  (required, see `docs/milestone-2-spec.md` section 4), a command issued before the socket reaches
+  the `ready` state fails with `Stream isn't writeable` instead of queueing. Boot must await the
+  `ready` event, not assume the constructor returns a usable client.
 
 ## Current state vs planned
 
-**Current (milestone 1):** deployment and CI only. The web app pings the
-api's `/health` route on mount and shows the result. That is the entire
-feature set, it exists to prove the pipeline: build, typecheck, lint, deploy,
-CORS, env validation, all wired and green.
+**Done (milestone 1):** deployment and CI scaffold. Build, typecheck, lint, deploy, CORS, env
+validation, all wired and green.
 
-**In progress (milestone 2):** the booking flow, backend only. Availability
-query, Redis soft holds, idempotent confirm, cancel. Variable-duration
-bookings on a 30-minute grid, held atomically through a `slot_claims`
-collection and a Mongo transaction. The full specification is
-`docs/milestone-2-spec.md`, and it is the source of truth for the data model,
-the concurrency design, and the test strategy.
+**Done (milestone 2):** the booking flow, backend only. Venue and station lookup, availability
+query, Redis soft holds, idempotent confirm, cancel. Variable-duration bookings on a 30-minute
+grid, held atomically through a `slot_claims` collection and a Mongo transaction. MongoDB Atlas
+and Upstash Redis are live infrastructure, not planned work. The full specification is
+`docs/milestone-2-spec.md`, and it remains the source of truth for the data model, the
+concurrency design, and the test strategy.
 
-**Planned (milestone 3), not yet present on purpose:** shadcn/ui, TanStack
-Router/Query/Table, the booking UI, auth, accounts. None of this is an
-oversight. Adding any of it before milestone 3 starts is scope creep.
+**Planned (milestone 3), not yet present on purpose:** shadcn/ui, TanStack Router/Query/Table,
+the booking UI, auth, accounts. None of this is an oversight. Adding any of it before milestone 3
+starts is scope creep.
