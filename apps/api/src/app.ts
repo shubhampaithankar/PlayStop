@@ -8,6 +8,7 @@ import { notFoundHandler } from "#middleware/not-found.js";
 import { requestId } from "#middleware/request-id.js";
 import { requestLogger } from "#middleware/request-logger.js";
 import v1Routes from "#routes/index.js";
+import { attachSentryErrorHandler } from "#libs/sentry/index.js";
 
 // Builds the app without booting Mongo/Redis or binding a port, so
 // integration tests can call this directly and app.listen(0) on an
@@ -39,6 +40,7 @@ export function buildApp(): Express {
   app.use("/v1", v1Routes);
 
   app.use(notFoundHandler);
+  attachSentryErrorHandler(app);
   app.use(errorHandler);
 
   return app;

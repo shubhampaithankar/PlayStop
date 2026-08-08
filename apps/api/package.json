@@ -19,6 +19,7 @@
   "dependencies": {
     "@playstop/engine": "workspace:*",
     "@playstop/types": "workspace:*",
+    "@sentry/node": "^10.69.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",

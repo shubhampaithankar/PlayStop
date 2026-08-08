@@ -29,6 +29,11 @@ const envSchema = z.object({
   // Drives the Redis key prefix (section 4). Separate from NODE_ENV, which
   // describes the process mode, not which data environment it talks to.
   APP_ENV: z.enum(["dev", "prod"]),
+
+  // Optional: no DSN means Sentry.init is a no-op (libs/sentry/index.ts), so
+  // local dev and CI need zero extra setup and make zero network calls.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 });
 
 function loadEnv() {

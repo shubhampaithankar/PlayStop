@@ -1,3 +1,8 @@
+// DO NOT MOVE: must be the first import. Sentry.init (the side effect in
+// this module) patches http, express and the mongo driver, so anything
+// imported above this line is never instrumented. An import sorter would
+// happily alphabetize this away -- don't let it.
+import "#libs/sentry/index.js";
 import { connectMongo } from "#libs/mongo/index.js";
 import { createIndexes } from "#libs/mongo/indexes.js";
 import { env } from "#env.js";
