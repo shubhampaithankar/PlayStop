@@ -6,6 +6,7 @@ import { env } from "#env.js";
 import { errorHandler } from "#middleware/error-handler.js";
 import { notFoundHandler } from "#middleware/not-found.js";
 import { requestId } from "#middleware/request-id.js";
+import { requestLogger } from "#middleware/request-logger.js";
 import v1Routes from "#routes/index.js";
 
 // Builds the app without booting Mongo/Redis or binding a port, so
@@ -18,6 +19,7 @@ export function buildApp(): Express {
   app.use(express.json({ limit: "16kb" }));
   app.use(cors({ origin: env.WEB_ORIGIN }));
   app.use(requestId);
+  app.use(requestLogger);
 
   // ponytail: Render free tier spins down after 15 min idle. Mitigation is an
   // external 5-minute ping to this route (UptimeRobot or a Cloudflare Worker
