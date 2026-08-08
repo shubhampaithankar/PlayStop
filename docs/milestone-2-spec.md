@@ -32,7 +32,7 @@ The step 0 gate has been run against the provisioned Atlas M0 and Upstash
 instances. All 14 checks passed. Findings that supersede the table below:
 
 - **Atlas M0 multi-document transactions are CONFIRMED working.** This was
-  revision 2's single largest open risk. Verified: `setName=atlas-5nqm07-shard-0`
+  revision 2's single largest open risk. Verified: `setName=atlas-<redacted>-shard-0`
   (a real replica set), a three-collection transaction committed, and a
   transaction losing a duplicate-key race on its MIDDLE cell rolled back with
   zero rows persisted. The `slot_claims` design holds on real infrastructure.
