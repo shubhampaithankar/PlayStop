@@ -20,121 +20,162 @@ function confirmBody(stationId: string, startsAt: string, slotCount: number): un
 // Test N: a slotCount one above the station's maxSlots is rejected, run
 // against two different profiles so a hardcoded limit (rather than reading
 // station.maxSlots) fails at least one of them.
-test("N: per-station slotCount limits hold for both a racing sim and a PS5 profile", { skip: !CI_ONLY }, async () => {
-  const { collections } = await import("#libs/mongo/index.js");
-  const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } = await import(
-    "#testing-support.js"
-  );
+test(
+  "N: per-station slotCount limits hold for both a racing sim and a PS5 profile",
+  { skip: !CI_ONLY },
+  async () => {
+    const { collections } = await import("#libs/mongo/index.js");
+    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
+      await import("#testing-support.js");
 
-  const server = await startTestServer();
+    let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
+    try {
+      server = await startTestServer();
 
-  for (const maxSlots of [4, 8]) {
-    const venue = await seedVenue({ maxSlots });
-    const stationId = venue.stationIds[0]!.toHexString();
-    const { cellStartMs } = futureSessionCells(venue, maxSlots + 1);
+      for (const maxSlots of [4, 8]) {
+        let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
+        try {
+          venue = await seedVenue({ maxSlots });
+          const stationId = venue.stationIds[0]!.toHexString();
+          const { cellStartMs } = futureSessionCells(venue, maxSlots + 1);
 
-    const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-      body: JSON.stringify(confirmBody(stationId, new Date(cellStartMs[0]!).toISOString(), maxSlots + 1)),
-    });
-    assert.equal(res.status, 422, `maxSlots ${maxSlots}: expected 422`);
-    const body = (await res.json()) as { error: { code: string } };
-    assert.equal(body.error.code, "SLOT_COUNT_OUT_OF_RANGE");
+          const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
+            body: JSON.stringify(
+              confirmBody(stationId, new Date(cellStartMs[0]!).toISOString(), maxSlots + 1),
+            ),
+          });
+          assert.equal(res.status, 422, `maxSlots ${maxSlots}: expected 422`);
+          const body = (await res.json()) as { error: { code: string } };
+          assert.equal(body.error.code, "SLOT_COUNT_OUT_OF_RANGE");
 
-    const bookingCount = await collections
-      .bookings()
-      .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
-    assert.equal(bookingCount, 0, `maxSlots ${maxSlots}: no booking should have been written`);
-    const claimCount = await collections
-      .slotClaims()
-      .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
-    assert.equal(claimCount, 0, `maxSlots ${maxSlots}: no claim should have been written`);
-
-    await wipeVenue(venue.venueId);
-  }
-
-  await server.close();
-  await closeTestResources();
-});
+          const bookingCount = await collections
+            .bookings()
+            .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
+          assert.equal(
+            bookingCount,
+            0,
+            `maxSlots ${maxSlots}: no booking should have been written`,
+          );
+          const claimCount = await collections
+            .slotClaims()
+            .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
+          assert.equal(claimCount, 0, `maxSlots ${maxSlots}: no claim should have been written`);
+        } finally {
+          if (venue) await wipeVenue(venue.venueId);
+        }
+      }
+    } finally {
+      if (server) await server.close();
+      await closeTestResources();
+    }
+  },
+);
 
 // Test O: a midnight-crossing booking. The default seed venue is open
 // 14:00-02:00, so a session's last two cells are on the calendar day after
 // the business date. Book them and confirm the business date's availability
 // shows them booked while the following calendar date's availability does
 // not include those instants at all.
-test("O: a midnight-crossing booking shows up on its business date only", { skip: !CI_ONLY }, async () => {
-  const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } = await import(
-    "#testing-support.js"
-  );
+test(
+  "O: a midnight-crossing booking shows up on its business date only",
+  { skip: !CI_ONLY },
+  async () => {
+    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
+      await import("#testing-support.js");
 
-  const server = await startTestServer();
-  const venue = await seedVenue({ maxSlots: 8 });
-  const stationId = venue.stationIds[0]!.toHexString();
+    let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
+    let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
+    try {
+      server = await startTestServer();
+      venue = await seedVenue({ maxSlots: 8 });
+      const stationId = venue.stationIds[0]!.toHexString();
 
-  const { businessDate, cellStartMs } = futureSessionCells(venue, 24); // the whole 14:00-02:00 session
-  const lateNightStart = cellStartMs[22]!; // local 01:00, the day after businessDate
-  const lateNightCells = [cellStartMs[22]!, cellStartMs[23]!];
+      const { businessDate, cellStartMs } = futureSessionCells(venue, 24); // the whole 14:00-02:00 session
+      const lateNightStart = cellStartMs[22]!; // local 01:00, the day after businessDate
+      const lateNightCells = [cellStartMs[22]!, cellStartMs[23]!];
 
-  const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-    body: JSON.stringify(confirmBody(stationId, new Date(lateNightStart).toISOString(), 2)),
-  });
-  assert.equal(res.status, 201);
+      const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
+        body: JSON.stringify(confirmBody(stationId, new Date(lateNightStart).toISOString(), 2)),
+      });
+      assert.equal(res.status, 201);
 
-  const availSameDate = await fetch(
-    `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
-  );
-  const availSameDateBody = (await availSameDate.json()) as { cells: { startsAt: string; state: string }[] };
-  const bookedCells = availSameDateBody.cells.filter((c) => lateNightCells.includes(new Date(c.startsAt).getTime()));
-  assert.equal(bookedCells.length, 2);
-  assert.ok(bookedCells.every((c) => c.state === "booked"));
+      const availSameDate = await fetch(
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+      );
+      const availSameDateBody = (await availSameDate.json()) as {
+        cells: { startsAt: string; state: string }[];
+      };
+      const bookedCells = availSameDateBody.cells.filter((c) =>
+        lateNightCells.includes(new Date(c.startsAt).getTime()),
+      );
+      assert.equal(bookedCells.length, 2);
+      assert.ok(bookedCells.every((c) => c.state === "booked"));
 
-  const nextDate = DateTime.fromISO(businessDate, { zone: venue.schedule.timezone }).plus({ days: 1 }).toISODate();
-  assert.ok(nextDate);
-  const availNextDate = await fetch(
-    `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${nextDate}&stationId=${stationId}`,
-  );
-  const availNextDateBody = (await availNextDate.json()) as { cells: { startsAt: string }[] };
-  const leaked = availNextDateBody.cells.some((c) => lateNightCells.includes(new Date(c.startsAt).getTime()));
-  assert.equal(leaked, false, "the booked instants must not appear under the following calendar date");
-
-  await wipeVenue(venue.venueId);
-  await server.close();
-  await closeTestResources();
-});
+      const nextDate = DateTime.fromISO(businessDate, { zone: venue.schedule.timezone })
+        .plus({ days: 1 })
+        .toISODate();
+      assert.ok(nextDate);
+      const availNextDate = await fetch(
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${nextDate}&stationId=${stationId}`,
+      );
+      const availNextDateBody = (await availNextDate.json()) as { cells: { startsAt: string }[] };
+      const leaked = availNextDateBody.cells.some((c) =>
+        lateNightCells.includes(new Date(c.startsAt).getTime()),
+      );
+      assert.equal(
+        leaked,
+        false,
+        "the booked instants must not appear under the following calendar date",
+      );
+    } finally {
+      if (venue) await wipeVenue(venue.venueId);
+      if (server) await server.close();
+      await closeTestResources();
+    }
+  },
+);
 
 // Test P: a booking cannot extend past closing. Starting at the
 // third-from-last cell of the session and asking for 4 slots needs a cell
 // that doesn't exist.
-test("P: a booking starting near the end of the session cannot extend past closing", { skip: !CI_ONLY }, async () => {
-  const { collections } = await import("#libs/mongo/index.js");
-  const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } = await import(
-    "#testing-support.js"
-  );
+test(
+  "P: a booking starting near the end of the session cannot extend past closing",
+  { skip: !CI_ONLY },
+  async () => {
+    const { collections } = await import("#libs/mongo/index.js");
+    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
+      await import("#testing-support.js");
 
-  const server = await startTestServer();
-  const venue = await seedVenue({ maxSlots: 8 });
-  const stationId = venue.stationIds[0]!.toHexString();
-  const { cellStartMs } = futureSessionCells(venue, 24);
-  const thirdFromLast = cellStartMs[21]!; // cells 21,22,23 exist; a 4th would not
+    let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
+    let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
+    try {
+      server = await startTestServer();
+      venue = await seedVenue({ maxSlots: 8 });
+      const stationId = venue.stationIds[0]!.toHexString();
+      const { cellStartMs } = futureSessionCells(venue, 24);
+      const thirdFromLast = cellStartMs[21]!; // cells 21,22,23 exist; a 4th would not
 
-  const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-    body: JSON.stringify(confirmBody(stationId, new Date(thirdFromLast).toISOString(), 4)),
-  });
-  assert.equal(res.status, 422);
-  const body = (await res.json()) as { error: { code: string } };
-  assert.equal(body.error.code, "SLOT_OUT_OF_WINDOW");
+      const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
+        body: JSON.stringify(confirmBody(stationId, new Date(thirdFromLast).toISOString(), 4)),
+      });
+      assert.equal(res.status, 422);
+      const body = (await res.json()) as { error: { code: string } };
+      assert.equal(body.error.code, "SLOT_OUT_OF_WINDOW");
 
-  const claimCount = await collections
-    .slotClaims()
-    .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
-  assert.equal(claimCount, 0);
-
-  await wipeVenue(venue.venueId);
-  await server.close();
-  await closeTestResources();
-});
+      const claimCount = await collections
+        .slotClaims()
+        .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
+      assert.equal(claimCount, 0);
+    } finally {
+      if (venue) await wipeVenue(venue.venueId);
+      if (server) await server.close();
+      await closeTestResources();
+    }
+  },
+);

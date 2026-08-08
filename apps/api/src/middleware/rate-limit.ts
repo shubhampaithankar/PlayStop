@@ -5,7 +5,11 @@ import { DomainError } from "#errors.js";
 // across a multi-instance deploy. Move the counter to Redis (INCR +
 // EXPIRE) when the API scales past one instance.
 export const RATE_LIMIT_WINDOW_MS = 60_000;
-export const RATE_LIMIT_MAX_REQUESTS = 30;
+// Overridable so the concurrency test suite (50+ requests to one venue in
+// one window) can raise the ceiling without weakening the real limit.
+// Unset in production and in the normal test run, so both still enforce 30.
+const envMax = Number.parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "", 10);
+export const RATE_LIMIT_MAX_REQUESTS = Number.isFinite(envMax) && envMax > 0 ? envMax : 30;
 
 interface Bucket {
   count: number;
@@ -57,9 +61,15 @@ export function rateLimit(req: Request, _res: Response, next: NextFunction): voi
   const result = checkRateLimit(key, Date.now());
   if (!result.allowed) {
     next(
-      new DomainError("RATE_LIMITED", 429, "Too many requests. Slow down and try again.", undefined, {
-        "Retry-After": String(result.retryAfterSeconds),
-      }),
+      new DomainError(
+        "RATE_LIMITED",
+        429,
+        "Too many requests. Slow down and try again.",
+        undefined,
+        {
+          "Retry-After": String(result.retryAfterSeconds),
+        },
+      ),
     );
     return;
   }

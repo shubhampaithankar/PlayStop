@@ -17,68 +17,101 @@ import { test } from "node:test";
 
 const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
-test("C: Redis unreachable still yields exactly one booking, and availability reports degraded", { skip: !CI_ONLY }, async () => {
-  process.env.REDIS_URL = "redis://127.0.0.1:65535"; // nothing listens here: fast, deterministic connection failure
+test(
+  "C: Redis unreachable still yields exactly one booking, and availability reports degraded",
+  { skip: !CI_ONLY },
+  async () => {
+    process.env.REDIS_URL = "redis://127.0.0.1:65535"; // nothing listens here: fast, deterministic connection failure
+    // 50 concurrent requests to one venue share one rate-limit bucket; the
+    // real limit of 30 would reject some before booking logic runs. Same
+    // pre-import ordering requirement as REDIS_URL above.
+    process.env.RATE_LIMIT_MAX_REQUESTS = "200";
 
-  const { collections } = await import("#libs/mongo/index.js");
-  const { closeTestResources, fireBurst, futureSessionCells, seedVenue, startTestServer, wipeVenue } = await import(
-    "#testing-support.js"
-  );
+    const { collections } = await import("#libs/mongo/index.js");
+    const {
+      closeTestResources,
+      fireBurst,
+      futureSessionCells,
+      seedVenue,
+      startTestServer,
+      wipeVenue,
+    } = await import("#testing-support.js");
 
-  const server = await startTestServer();
-  const venue = await seedVenue({ maxSlots: 4 });
-  const stationId = venue.stationIds[0]!.toHexString();
-  const { businessDate, cellStartMs } = futureSessionCells(venue, 1);
-  const startsAt = new Date(cellStartMs[0]!).toISOString();
+    let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
+    let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
+    try {
+      server = await startTestServer();
+      venue = await seedVenue({ maxSlots: 4 });
+      const stationId = venue.stationIds[0]!.toHexString();
+      const { businessDate, cellStartMs } = futureSessionCells(venue, 1);
+      const startsAt = new Date(cellStartMs[0]!).toISOString();
 
-  const N = 50;
-  const { results, startSpreadMs } = await fireBurst(N, () => ({
-    url: `${server.baseUrl}/v1/venues/${venue.slug}/bookings`,
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-      body: JSON.stringify({ stationId, startsAt, slotCount: 1, partySize: 1, player: { name: "Racer" } }),
-    },
-  }));
-  assert.ok(startSpreadMs < 1000, `requests not observed to overlap (${startSpreadMs}ms spread)`);
+      const N = 50;
+      const { results, startSpreadMs } = await fireBurst(N, () => ({
+        url: `${server!.baseUrl}/v1/venues/${venue!.slug}/bookings`,
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
+          body: JSON.stringify({
+            stationId,
+            startsAt,
+            slotCount: 1,
+            partySize: 1,
+            player: { name: "Racer" },
+          }),
+        },
+      }));
+      assert.ok(
+        startSpreadMs < 1000,
+        `requests not observed to overlap (${startSpreadMs}ms spread)`,
+      );
 
-  const classified = await Promise.all(
-    results.map(async (r) => {
-      if (r.status === "rejected") throw new Error(`fetch rejected: ${String(r.reason)}`);
-      const res = r.value;
-      if (res.status === 201) return { status: 201 };
-      const body = (await res.json()) as { error: { code: string } };
-      return { status: res.status, code: body.error.code };
-    }),
-  );
-  assert.equal(classified.filter((c) => c.status === 201).length, 1);
-  assert.equal(classified.filter((c) => c.status === 409 && c.code === "SLOT_TAKEN").length, N - 1);
-  assert.equal(classified.filter((c) => c.status === 503).length, 0);
+      const classified = await Promise.all(
+        results.map(async (r) => {
+          if (r.status === "rejected") throw new Error(`fetch rejected: ${String(r.reason)}`);
+          const res = r.value;
+          if (res.status === 201) return { status: 201 };
+          const body = (await res.json()) as { error: { code: string } };
+          return { status: res.status, code: body.error.code };
+        }),
+      );
+      assert.equal(classified.filter((c) => c.status === 201).length, 1);
+      assert.equal(
+        classified.filter((c) => c.status === 409 && c.code === "SLOT_TAKEN").length,
+        N - 1,
+      );
+      assert.equal(classified.filter((c) => c.status === 503).length, 0);
 
-  const bookingCount = await collections.bookings().countDocuments({
-    venueId: venue.venueId,
-    stationId: venue.stationIds[0]!,
-    startsAt: new Date(cellStartMs[0]!),
-    status: "confirmed",
-  });
-  assert.equal(bookingCount, 1);
+      const bookingCount = await collections.bookings().countDocuments({
+        venueId: venue.venueId,
+        stationId: venue.stationIds[0]!,
+        startsAt: new Date(cellStartMs[0]!),
+        status: "confirmed",
+      });
+      assert.equal(bookingCount, 1);
 
-  const claimCount = await collections.slotClaims().countDocuments({
-    venueId: venue.venueId,
-    stationId: venue.stationIds[0]!,
-    cellStart: new Date(cellStartMs[0]!),
-    status: "confirmed",
-  });
-  assert.equal(claimCount, 1);
+      const claimCount = await collections.slotClaims().countDocuments({
+        venueId: venue.venueId,
+        stationId: venue.stationIds[0]!,
+        cellStart: new Date(cellStartMs[0]!),
+        status: "confirmed",
+      });
+      assert.equal(claimCount, 1);
 
-  const availRes = await fetch(
-    `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
-  );
-  assert.equal(availRes.status, 200);
-  const availBody = (await availRes.json()) as { degraded: boolean };
-  assert.equal(availBody.degraded, true, "availability must report degraded when Redis is unreachable");
-
-  await wipeVenue(venue.venueId);
-  await server.close();
-  await closeTestResources();
-});
+      const availRes = await fetch(
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+      );
+      assert.equal(availRes.status, 200);
+      const availBody = (await availRes.json()) as { degraded: boolean };
+      assert.equal(
+        availBody.degraded,
+        true,
+        "availability must report degraded when Redis is unreachable",
+      );
+    } finally {
+      if (venue) await wipeVenue(venue.venueId);
+      if (server) await server.close();
+      await closeTestResources();
+    }
+  },
+);
