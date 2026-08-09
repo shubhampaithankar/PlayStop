@@ -14,7 +14,7 @@
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && tsc --noEmit",
-    "test": "node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && pnpm build && node --test --test-concurrency=1 --env-file-if-exists=.env dist/",
+    "test": "pnpm build && node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node --test --test-concurrency=1 --env-file-if-exists=.env dist-tests/",
     "seed": "node --env-file-if-exists=.env dist/seed.js"
   },
   "dependencies": {
