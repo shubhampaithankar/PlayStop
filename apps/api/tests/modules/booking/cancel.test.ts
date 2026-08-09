@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { ObjectId } from "mongodb";
-import type { AvailabilityResponse, BookingResponse } from "@playstop/engine";
+import { bookingResponseSchema, type AvailabilityResponse, type BookingResponse } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
 import {
   futureSessionCells,
@@ -68,7 +68,7 @@ test("cancel routes", async (t) => {
 
       const cancelled = await cancel(bookedBody.id, bookedBody.confirmationCode);
       assert.equal(cancelled.status, 200);
-      const cancelledBody = (await cancelled.json()) as BookingResponse;
+      const cancelledBody = bookingResponseSchema.parse(await cancelled.json());
       assert.equal(cancelledBody.status, "cancelled");
       assert.ok(cancelledBody.cancelledAt);
 

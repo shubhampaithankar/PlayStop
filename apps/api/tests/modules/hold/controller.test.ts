@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import type { CreateHoldResponse } from "@playstop/engine";
+import { createHoldResponseSchema, type CreateHoldResponse } from "@playstop/engine";
 import {
   futureSessionCells,
   seedVenue,
@@ -45,7 +45,7 @@ test("hold routes", async (t) => {
       const startsAt = new Date(cellStartMs[0]!).toISOString();
       const res = await createHold({ stationId, startsAt, slotCount: 2 });
       assert.equal(res.status, 201);
-      const body = (await res.json()) as CreateHoldResponse;
+      const body = createHoldResponseSchema.parse(await res.json());
       assert.equal(body.slotCount, 2);
       assert.equal(body.currency, "INR");
 

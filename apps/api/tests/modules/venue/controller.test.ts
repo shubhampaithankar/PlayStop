@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { AvailabilityResponse, VenueResponse } from "@playstop/engine";
+import { availabilityResponseSchema, venueResponseSchema } from "@playstop/engine";
 import {
   futureSessionCells,
   seedVenue,
@@ -27,7 +27,7 @@ test("venue routes", async (t) => {
     await t.test("GET /venues/:slug returns the venue and its active stations", async () => {
       const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}`);
       assert.equal(res.status, 200);
-      const body = (await res.json()) as VenueResponse;
+      const body = venueResponseSchema.parse(await res.json());
       assert.equal(body.slug, venue.slug);
       assert.equal(body.stations.length, 1);
       assert.equal(body.gridMinutes, 30);
@@ -46,7 +46,7 @@ test("venue routes", async (t) => {
         `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}`,
       );
       assert.equal(res.status, 200);
-      const body = (await res.json()) as AvailabilityResponse;
+      const body = availabilityResponseSchema.parse(await res.json());
       assert.equal(body.closed, null);
       assert.equal(body.degraded, false);
       assert.equal(body.cells.length, 24); // 14:00 to 02:00, 30-minute grid

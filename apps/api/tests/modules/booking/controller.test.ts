@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import type { BookingResponse, CreateHoldResponse } from "@playstop/engine";
+import { bookingResponseSchema, type BookingResponse, type CreateHoldResponse } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
 import { hashRequest } from "#modules/booking/idempotency.js";
 import {
@@ -53,7 +53,7 @@ test("booking confirm and read routes", async (t) => {
         player: player(),
       });
       assert.equal(res.status, 201);
-      const body = (await res.json()) as BookingResponse;
+      const body = bookingResponseSchema.parse(await res.json());
       assert.equal(body.slotCount, 3);
       assert.equal(body.totalMinor, (1200 * 3 * 30) / 60); // hourlyRateMinor * slotCount * gridMinutes/60
       assert.match(body.confirmationCode, /^[0-9A-HJKMNP-TV-Z]{10}$/);
@@ -62,7 +62,7 @@ test("booking confirm and read routes", async (t) => {
         `${server.baseUrl}/v1/venues/${venue.slug}/bookings/${body.id}?code=${body.confirmationCode}`,
       );
       assert.equal(read.status, 200);
-      const readBody = (await read.json()) as BookingResponse;
+      const readBody = bookingResponseSchema.parse(await read.json());
       assert.equal(readBody.id, body.id);
     });
 
