@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ERROR_CODES } from "./constants.js";
 
-export const errorCodeSchema = z.enum(ERROR_CODES);
+export const errorCodeSchema = z.nativeEnum(ERROR_CODES);
 
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 

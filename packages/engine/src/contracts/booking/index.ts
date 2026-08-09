@@ -49,7 +49,7 @@ export const bookingResponseSchema = z.object({
   slotCount: z.number().int(),
   partySize: z.number().int(),
   localLabel: z.string(), // label of the first cell
-  status: z.enum(BOOKING_STATUSES),
+  status: z.nativeEnum(BOOKING_STATUSES),
   confirmationCode: confirmationCodeSchema,
   totalMinor: z.number().int(),
   currency: z.string(),

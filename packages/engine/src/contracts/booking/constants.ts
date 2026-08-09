@@ -11,7 +11,10 @@ const PLAYER_PHONE_PATTERN = /^[+0-9 ()-]+$/;
 const PARTY_SIZE_MIN = 1;
 const PARTY_SIZE_MAX = 8; // station bound 1..capacity checked server-side
 
-const BOOKING_STATUSES = ["confirmed", "cancelled"] as const;
+const BOOKING_STATUSES = {
+  CONFIRMED: "confirmed",
+  CANCELLED: "cancelled",
+} as const;
 
 export {
   CONFIRMATION_CODE_PATTERN,

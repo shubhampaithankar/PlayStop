@@ -1,8 +1,11 @@
 import type { StationKind } from "@playstop/types";
 
-// The four values are declared exactly once, in packages/types' hand-written
-// StationKind union (also used by StationDoc and StationInput). `satisfies`
-// fails the build the moment this array drifts from that union.
-const STATION_KINDS = ["ps5", "ps3", "ps2", "racing-sim"] as const satisfies readonly StationKind[];
-
-export { STATION_KINDS };
+// Declared exactly once, in packages/types' hand-written StationKind union
+// (also used by StationDoc and StationInput). `satisfies` fails the build the
+// moment this drifts from that union.
+export const STATION_KINDS = {
+  PS5: "ps5",
+  PS3: "ps3",
+  PS2: "ps2",
+  RACING_SIM: "racing-sim",
+} as const satisfies Record<string, StationKind>;

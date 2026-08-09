@@ -18,7 +18,7 @@ export const availabilityResponseSchema = z.object({
   gridMinutes: z.number().int(),
   closed: z
     .object({
-      reason: z.enum(CLOSED_REASONS),
+      reason: z.nativeEnum(CLOSED_REASONS),
     })
     .nullable(),
   degraded: z.boolean(), // true when Redis was unreachable; held cells reported as free

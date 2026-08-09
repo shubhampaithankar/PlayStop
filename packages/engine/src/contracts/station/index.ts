@@ -2,7 +2,7 @@ import { z } from "zod";
 import { objectIdSchema } from "../primitives/index.js";
 import { STATION_KINDS } from "./constants.js";
 
-export const stationKindSchema = z.enum(STATION_KINDS);
+export const stationKindSchema = z.nativeEnum(STATION_KINDS);
 
 export const stationSummarySchema = z.object({
   id: objectIdSchema,
