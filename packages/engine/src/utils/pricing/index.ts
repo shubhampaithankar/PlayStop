@@ -1,4 +1,5 @@
 import type { StationInput } from "../availability/index.js";
+import { MINUTES_PER_HOUR } from "../../constants/time/index.js";
 
 /**
  * `hourlyRateMinor * slotCount * gridMinutes / 60`, integer minor units.
@@ -10,7 +11,7 @@ export function priceBooking(
   gridMinutes: number,
   slotCount: number,
 ): number {
-  const totalMinor = (station.hourlyRateMinor * slotCount * gridMinutes) / 60;
+  const totalMinor = (station.hourlyRateMinor * slotCount * gridMinutes) / MINUTES_PER_HOUR;
   if (!Number.isInteger(totalMinor)) {
     throw new Error(
       `priceBooking produced a non-integer amount (${totalMinor}); station.hourlyRateMinor * gridMinutes must be a multiple of 60`,

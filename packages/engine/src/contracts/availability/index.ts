@@ -2,7 +2,7 @@ import { z } from "zod";
 import { availabilityCellSchema } from "../cell/index.js";
 import { localDateSchema, objectIdSchema } from "../primitives/index.js";
 import { stationKindSchema } from "../station/index.js";
-import { CLOSED_REASONS } from "./constants.js";
+import { CLOSED_REASONS } from "../../constants/closed-reason/index.js";
 
 export const availabilityQuerySchema = z.object({
   date: localDateSchema, // required, the business date the session opens on

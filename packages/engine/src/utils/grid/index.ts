@@ -1,5 +1,8 @@
 import { DateTime } from "luxon";
 import type { ClosedReason, GridCell, GridResult, VenueSchedule } from "@playstop/types";
+import { CLOSED_REASONS } from "../../constants/closed-reason/index.js";
+import { MINUTES_PER_HOUR, MS_PER_DAY, MS_PER_MINUTE } from "../../constants/time/index.js";
+import { LOCAL_LABEL_FORMAT } from "./constants.js";
 
 export type { ClosedReason, GridCell, GridResult, VenueSchedule };
 
@@ -63,7 +66,7 @@ function resolveInstant(local: DateTime, boundary: "earliest" | "latest"): numbe
  * business date.
  */
 export function generateSlotGrid(venue: VenueSchedule, businessDate: string): GridResult {
-  if (venue.gridMinutes <= 0 || 60 % venue.gridMinutes !== 0) {
+  if (venue.gridMinutes <= 0 || MINUTES_PER_HOUR % venue.gridMinutes !== 0) {
     throw new InvalidGridMinutesError(
       `gridMinutes (${venue.gridMinutes}) must be a positive divisor of 60`,
     );
@@ -82,7 +85,7 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
   if (hours === null) {
     return {
       kind: "closed",
-      reason: "weekday_closed",
+      reason: CLOSED_REASONS.WEEKDAY_CLOSED,
       windowStartMs: closedWindowStartMs,
       windowEndMs: closedWindowEndMs,
     };
@@ -90,7 +93,7 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
   if (venue.blackoutDates.includes(businessDate)) {
     return {
       kind: "closed",
-      reason: "blackout",
+      reason: CLOSED_REASONS.BLACKOUT,
       windowStartMs: closedWindowStartMs,
       windowEndMs: closedWindowEndMs,
     };
@@ -111,17 +114,17 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
   const openInstant = resolveInstant(openLocal, "earliest");
   const closeInstant = resolveInstant(closeLocal, "latest");
 
-  if (closeInstant - openInstant > 86_400_000) {
+  if (closeInstant - openInstant > MS_PER_DAY) {
     throw new InvalidOpeningHoursError(
       `resolved session for ${businessDate} in ${venue.timezone} exceeds 24 hours`,
     );
   }
 
-  const stride = venue.gridMinutes * 60_000;
+  const stride = venue.gridMinutes * MS_PER_MINUTE;
   if (closeInstant <= openInstant + stride) {
     return {
       kind: "closed",
-      reason: "no_valid_hours",
+      reason: CLOSED_REASONS.NO_VALID_HOURS,
       windowStartMs: closedWindowStartMs,
       windowEndMs: closedWindowEndMs,
     };
@@ -136,9 +139,7 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
     cells.push({
       cellStartMs: t,
       cellEndMs: t + stride,
-      localLabel: DateTime.fromMillis(t, { zone: venue.timezone }).toFormat(
-        "yyyy-MM-dd HH:mm ZZZZ",
-      ),
+      localLabel: DateTime.fromMillis(t, { zone: venue.timezone }).toFormat(LOCAL_LABEL_FORMAT),
     });
   }
 

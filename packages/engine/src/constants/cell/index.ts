@@ -4,6 +4,9 @@ import type { CellState } from "@playstop/types";
 // string. The values are declared exactly once, in packages/types' hand-written
 // CellState union: `satisfies` fails the build the moment this drifts from that
 // union, replacing what used to be a runtime sync test.
+//
+// Shared between contracts (schema validation) and utils (state resolution
+// logic), so it lives here rather than under either one.
 export const CELL_STATES = {
   FREE: "free",
   HELD: "held",

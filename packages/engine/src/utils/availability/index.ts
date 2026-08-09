@@ -8,6 +8,8 @@ import type {
 } from "@playstop/types";
 import type { GridCell } from "../grid/index.js";
 import { generateSlotGrid } from "../grid/index.js";
+import { CELL_STATES } from "../../constants/cell/index.js";
+import { MS_PER_DAY, MS_PER_MINUTE } from "../../constants/time/index.js";
 
 export type { AvailabilityCell, AvailabilityInput, AvailabilityResult, CellState, OccupiedCell, StationInput };
 
@@ -25,21 +27,21 @@ function resolveCellState(
   maxAdvanceDays: number,
   nowMs: number,
 ): CellState {
-  if (cell.cellStartMs < nowMs + leadTimeMinutes * 60_000) return "past";
-  if (cell.cellStartMs > nowMs + maxAdvanceDays * 86_400_000) return "too_far_ahead";
+  if (cell.cellStartMs < nowMs + leadTimeMinutes * MS_PER_MINUTE) return CELL_STATES.PAST;
+  if (cell.cellStartMs > nowMs + maxAdvanceDays * MS_PER_DAY) return CELL_STATES.TOO_FAR_AHEAD;
 
   const inMaintenance = station.maintenanceWindows.some(
     (window) => cell.cellStartMs < window.endsAtMs && cell.cellEndMs > window.startsAtMs,
   );
-  if (inMaintenance) return "maintenance";
+  if (inMaintenance) return CELL_STATES.MAINTENANCE;
 
   const key = occupiedKey(station.stationId, cell.cellStartMs);
   // Booked ranks above held: if both exist for the same cell (a hold that
   // was confirmed but whose release lost a race), the truthful answer is
   // "booked".
-  if (claimed.has(key)) return "booked";
-  if (held.has(key)) return "held";
-  return "free";
+  if (claimed.has(key)) return CELL_STATES.BOOKED;
+  if (held.has(key)) return CELL_STATES.HELD;
+  return CELL_STATES.FREE;
 }
 
 export function computeAvailability(input: AvailabilityInput): AvailabilityResult {
