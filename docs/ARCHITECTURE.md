@@ -7,8 +7,10 @@ pnpm workspace monorepo, three packages:
 ```
 apps/web          Vite + React 19 + TypeScript + Tailwind CSS v4, one page
 apps/api          Express 5 + TypeScript + Zod, MongoDB + Redis, the booking API
-packages/types    Zod schemas and TypeScript types shared by both apps
-packages/engine   Shared pure logic: slot grid, availability, pricing
+packages/engine   Zod schemas, their inferred types, and pure logic: slot grid, availability,
+                  pricing. Anything with runtime behavior lives here.
+packages/types    Hand-written TypeScript declarations only: no Zod, no dependencies, emits no
+                  JavaScript. Engine's compute vocabulary and the Mongo document shapes.
 ```
 
 Each has its own `README.md` for specifics. This file is the map between them.
@@ -40,14 +42,21 @@ reaches into another module's `data.ts` directly, it goes through the controller
 
 ## Dependency direction
 
-`apps/web` and `apps/api` both depend on `packages/types`. `packages/engine` depends on
-`packages/types` for the shapes it takes and returns, and on nothing in `apps/*`. `packages/types`
-depends on neither `apps/*` nor `packages/engine`. The direction only ever goes app or engine
-toward types, never the reverse.
+The rule is runtime versus compile-time. `packages/engine` holds every Zod schema, the types
+inferred from those schemas (`z.infer`), and the pure logic that operates on them; it depends on
+`zod`, `luxon`, and `packages/types`. `packages/types` holds only hand-written declarations
+(interfaces, type aliases, unions): zero runtime code, zero dependencies, no JS emitted. `apps/web`
+and `apps/api` may depend on either package directly. `packages/types` depends on nothing;
+`packages/engine` never gets imported by `packages/types`. The direction only ever goes app or
+engine toward types, never the reverse.
 
-Any shape that crosses the web-to-api network boundary is defined once in `packages/types/src/api/`
-and imported on both sides, never redefined locally. Shared domain types that aren't network
-contracts live in `packages/types/src/common/`.
+Any shape that crosses the web-to-api network boundary is a Zod schema, defined once in
+`packages/engine/src/schemas/` and imported on both sides, never redefined locally. Structural
+shapes that describe engine's own compute functions (`VenueSchedule`, `GridCell`, `StationInput`,
+`AvailabilityResult`, and so on) and the Mongo document shapes live in `packages/types`, hand-written since they never touch a schema. Where a wire schema and a compute type share a concept
+(a station's `kind`, a cell's `state`), the compute type in `packages/types` is the one
+declaration, and the schema in `packages/engine` is built from it with a `satisfies` check so the
+two cannot silently drift.
 
 ## Module aliases
 

@@ -49,11 +49,11 @@ Add to `apps/web/package.json`:
 
 ```
 dependencies:
-  @playstop/engine        workspace:*     priceBooking only
+  @playstop/engine        workspace:*     schemas (apiErrorSchema, createBookingRequestSchema, etc.) and priceBooking
   @tanstack/react-router   ^1
   @tanstack/react-query    ^5
   @sentry/react            ^10
-  zod                      ^3             same major as packages/types
+  zod                      ^3             same major as packages/engine
   clsx, tailwind-merge                    pulled in by shadcn's lib/utils
   class-variance-authority                pulled in by shadcn button/badge/alert
   lucide-react                            icons, tree shaken
@@ -144,7 +144,7 @@ validated with the shared schemas. Nothing about a booking in progress lives onl
 | `/book/$stationId` | `stationId` | `date`, `start` (ISO instant), `slots` (int) | `objectIdSchema`, `isoInstantSchema` |
 | `/booking/$bookingId` | `bookingId` | `code` (required) | the confirmation code shape |
 
-`validateSearch` uses a Zod object built from `@playstop/types` primitives and a `.catch()` per
+`validateSearch` uses a Zod object built from `@playstop/engine` primitives and a `.catch()` per
 field, so a hand-mangled URL redirects to a sane default instead of throwing. `/book` with a missing
 or unparseable `date` gets `defaultBusinessDate(venue, now)` (section 7). `/book/$stationId` with a
 missing `start` or `slots` navigates back to `/book`, because there is no range to hold.
@@ -195,9 +195,9 @@ set, and how a non-2xx body becomes a typed error.
 ### The two error types
 
 ```ts
-import { apiErrorSchema, type ErrorCode } from "@playstop/types";
+import { apiErrorSchema, type ErrorCode } from "@playstop/engine";
 
-/** The server answered with a structured error. `code` is the closed union from packages/types. */
+/** The server answered with a structured error. `code` is the closed union from packages/engine. */
 export class ApiRequestError extends Error {
   override readonly name = "ApiRequestError";
   constructor(
@@ -255,7 +255,7 @@ async function request<T>(opts: {
   query?: Record<string, string>;
   body?: unknown;
   idempotencyKey?: string;
-  schema: z.ZodType<T>;               // the response schema from @playstop/types
+  schema: z.ZodType<T>;               // the response schema from @playstop/engine
   signal?: AbortSignal;
   timeoutMs?: number;                 // default 90_000, see section 8
 }): Promise<T>
@@ -995,7 +995,7 @@ exclusive states from section 5's table), player form, confirm button.
 The form is a native `<form action={...}>` driven by `useActionState`. React 19's form action gets
 the pending state, the reset behaviour, and the progressive-enhancement shape for free, and it keeps
 the submit handler out of an `onClick`. Field validation before sending: parse the assembled body
-with `createBookingRequestSchema` from `@playstop/types` and surface `flatten().fieldErrors` inline.
+with `createBookingRequestSchema` from `@playstop/engine` and surface `flatten().fieldErrors` inline.
 The client parses the same schema the server does, which is the whole point of sharing it, and it
 means `VALIDATION_FAILED` from the server should be unreachable and is therefore reported when it
 happens.
