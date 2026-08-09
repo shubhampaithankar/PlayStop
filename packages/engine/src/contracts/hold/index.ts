@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { isoInstantSchema, objectIdSchema } from "../primitives/index.js";
+import { SLOT_COUNT_MIN, SLOT_COUNT_MAX } from "../primitives/constants.js";
 
 export const createHoldRequestSchema = z.object({
   stationId: objectIdSchema,
   startsAt: isoInstantSchema,
-  slotCount: z.number().int().min(1).max(48),
+  slotCount: z.number().int().min(SLOT_COUNT_MIN).max(SLOT_COUNT_MAX),
 });
 
 export type CreateHoldRequest = z.infer<typeof createHoldRequestSchema>;
@@ -27,7 +28,7 @@ export const releaseHoldRequestSchema = z.object({
   holdId: z.string().uuid(),
   stationId: objectIdSchema,
   startsAt: isoInstantSchema,
-  slotCount: z.number().int().min(1).max(48),
+  slotCount: z.number().int().min(SLOT_COUNT_MIN).max(SLOT_COUNT_MAX),
 });
 
 export type ReleaseHoldRequest = z.infer<typeof releaseHoldRequestSchema>;

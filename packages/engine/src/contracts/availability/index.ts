@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { ClosedReason } from "@playstop/types";
 import { availabilityCellSchema } from "../cell/index.js";
 import { localDateSchema, objectIdSchema } from "../primitives/index.js";
 import { stationKindSchema } from "../station/index.js";
+import { CLOSED_REASONS } from "./constants.js";
 
 export const availabilityQuerySchema = z.object({
   date: localDateSchema, // required, the business date the session opens on
@@ -12,18 +12,13 @@ export const availabilityQuerySchema = z.object({
 
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
 
-// The three reasons are declared exactly once, in packages/types' ClosedReason
-// union (also used by GridResult and AvailabilityResult). `satisfies` fails
-// the build the moment this array drifts from that union.
-const closedReasons = ["weekday_closed", "blackout", "no_valid_hours"] as const satisfies readonly ClosedReason[];
-
 export const availabilityResponseSchema = z.object({
   businessDate: z.string(),
   timezone: z.string(),
   gridMinutes: z.number().int(),
   closed: z
     .object({
-      reason: z.enum(closedReasons),
+      reason: z.enum(CLOSED_REASONS),
     })
     .nullable(),
   degraded: z.boolean(), // true when Redis was unreachable; held cells reported as free
