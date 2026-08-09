@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "imports": {
+    "#testing-support.js": "./dist-tests/tests/testing-support.js",
     "#*": "./dist/*"
   },
   "scripts": {
@@ -12,8 +13,8 @@
     "dev:serve": "node --watch --env-file=.env dist/main.js",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test --test-concurrency=1 --env-file-if-exists=.env dist/",
+    "typecheck": "node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && tsc --noEmit",
+    "test": "node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && pnpm build && node --test --test-concurrency=1 --env-file-if-exists=.env dist/",
     "seed": "node --env-file-if-exists=.env dist/seed.js"
   },
   "dependencies": {
