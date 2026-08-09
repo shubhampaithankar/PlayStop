@@ -8,8 +8,9 @@
 - Web: Vite + React 19 + Tailwind CSS v4 (`@tailwindcss/vite`)
 - API: Express 5 + Zod + MongoDB (native driver, no Mongoose) + Redis (ioredis), dev and prod
   both run compiled output (`tsc -w` + `node --watch`)
-- Types: `packages/types` exports Zod schemas and TS types consumed by both apps
-- Engine: `packages/engine` holds shared pure logic (slot grid, availability, pricing)
+- Types: `packages/types` is declarations only, zero runtime, zero dependencies
+- Engine: `packages/engine` holds everything with runtime behaviour: Zod contracts, their
+  inferred types, shared constants, and the pure logic (slot grid, availability, pricing)
 - Package manager: pnpm workspaces (`packageManager` pinned in root `package.json`)
 
 ## Commands
@@ -30,9 +31,6 @@
 - `apps/web` aliases `@/*` to its own `src/*`; `apps/api` aliases `#*` to its own `src/*`
   (typecheck) / `dist/*` (runtime). See `docs/ARCHITECTURE.md` for why they differ.
 - API env is parsed and validated with Zod at boot (`apps/api/src/env.ts`), invalid env fails fast.
-- `apps/api/src` modules (`modules/venue`, `availability`, `hold`, `booking`) each have
-  `route.ts` → `controller.ts` → `data.ts`. A module never reaches into another module's
-  `data.ts` directly. See `docs/ARCHITECTURE.md`.
 - Redis holds are advisory UX; the Mongo unique index on `slot_claims` is the correctness
   backstop. Never trust a hold as proof a cell is free. See `docs/milestone-2-spec.md` section 4.
 - Test file names must not match `test-*.js` / `*-test.js` / `*_test.js` / `*.test.js` unless
@@ -43,6 +41,26 @@
   in a `try/finally`, not just at the end of the function. A skipped cleanup after a failed
   assertion hangs the run instead of failing it.
 
+## Module convention
+One folder per thing, each with an `index.ts`. A companion file (`constants.ts`, `utils.ts`,
+`data.ts`, `controller.ts`, `route.ts`) joins a folder when it has something to hold, never as
+an empty stub to complete the pattern.
+
+- `apps/api/src/modules/<domain>/`: `route.ts` -> `controller.ts` -> `data.ts`, plus `utils.ts`
+  where there is real logic. A module never reaches into another module's `data.ts`.
+  `routes/index.ts` mounts each router at its own prefix; `routes/slug-router.ts` holds
+  everything venue-scoped, so `resolveVenue` runs once instead of per module.
+- `apps/api/src/libs/<vendor>/`: third-party wrappers only (mongo, redis, sentry). Nothing
+  under `libs/` knows what a booking is.
+- `packages/engine/src/contracts/<name>/`: Zod contracts that cross the network boundary.
+- `packages/engine/src/utils/<name>/`: pure logic (grid, availability, pricing).
+- `packages/engine/src/constants/<name>/`: a value used on BOTH sides of the contracts/utils
+  boundary, or across two utils modules, is lifted here rather than declared twice.
+- `packages/types/src/<name>/`: declarations only. `compute/` is engine vocabulary in epoch
+  milliseconds, `mongo/` is on-disk document shapes. No runtime code, so no `constants.ts`.
+- Enum-like constants are keyed objects (`CELL_STATES.FREE`), consumed with `z.nativeEnum`, and
+  `satisfies` the matching union in `packages/types` so drift is a compile error rather than a
+  test that has to notice.
 ## Testing
 - `node --test` against compiled output (`dist-tests/`, kept separate from the runtime
   build in `dist/`), three layers: pure-function engine tests (fast, no I/O), low-volume

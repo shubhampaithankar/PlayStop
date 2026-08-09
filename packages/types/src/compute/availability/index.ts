@@ -1,5 +1,5 @@
-import type { StationKind } from "../station-kind.js";
-import type { ClosedReason, VenueSchedule } from "./grid.js";
+import type { StationKind } from "../../station-kind/index.js";
+import type { ClosedReason, VenueSchedule } from "../grid/index.js";
 
 export interface StationInput {
   readonly stationId: string;

@@ -1,2 +1,2 @@
-export * from "./grid.js";
-export * from "./availability.js";
+export * from "./grid/index.js";
+export * from "./availability/index.js";

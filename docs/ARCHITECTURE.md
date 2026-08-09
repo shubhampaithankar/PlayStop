@@ -45,6 +45,48 @@ Tests live outside `src`, in `apps/api/tests`, mirroring the `src` layout they c
 `tsconfig.test.json` compiles `tests/` to `dist-tests/`, kept separate from the runtime
 build in `dist/` so a `node --test` run never picks up stale compiled tests.
 
+## Module convention
+
+One folder per thing, each with an `index.ts`. A companion file joins a folder when it has
+something to hold, never as an empty stub to complete the pattern. This is why `availability`
+and `hold` have no `utils.ts` and `pricing` has no `constants.ts`: there was nothing to put
+in them.
+
+```
+apps/api/src/
+  modules/<domain>/   route.ts -> controller.ts -> data.ts, plus utils.ts where earned
+  libs/<vendor>/      third-party wrappers only: mongo, redis, sentry
+  middleware/         per-request cross-cutting concerns
+  routes/             index.ts mounts each module at its own prefix
+                      slug-router.ts holds everything under /venues/:venueSlug
+
+packages/engine/src/
+  contracts/<name>/   Zod contracts that cross the network boundary, plus their constants
+  utils/<name>/       pure logic: grid, availability, pricing
+  constants/<name>/   values shared across the contracts/utils boundary
+
+packages/types/src/
+  compute/<name>/     engine vocabulary, epoch milliseconds
+  mongo/              on-disk document shapes
+  <name>/             standalone unions
+```
+
+Where a value lives follows one rule: **declared once, as close to its only consumer as
+possible, and lifted only when a second module genuinely needs it.** `CELL_STATES` sits in
+`constants/` because the availability logic assigns those states and the contract validates
+them. `MS_PER_MINUTE` sits there because grid, availability and pricing all divide by it.
+`CONFIRMATION_CODE_PATTERN` stays inside `contracts/booking/` because nothing else uses it.
+
+Enum-like constants are keyed objects consumed with `z.nativeEnum`:
+
+```ts
+export const CELL_STATES = { FREE: "free", ... } as const satisfies Record<string, CellState>;
+export const cellStateSchema = z.nativeEnum(CELL_STATES);
+```
+
+The `satisfies` check against the hand-written union in `packages/types` is what makes drift a
+compile error. It replaced a runtime test that asserted the two lists matched, which could only
+fail after the fact.
 ## Dependency direction
 
 The rule is runtime versus compile-time. `packages/engine` holds every Zod schema, the types

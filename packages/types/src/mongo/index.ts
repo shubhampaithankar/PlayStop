@@ -1,5 +1,5 @@
 import type { ObjectId } from "mongodb";
-import type { StationKind } from "./station-kind.js";
+import type { StationKind } from "../station-kind/index.js";
 
 // Mongo document shapes, per docs/milestone-2-spec.md section 1. These are
 // the on-disk documents, not the wire contracts in packages/engine's
