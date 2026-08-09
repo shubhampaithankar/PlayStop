@@ -7,7 +7,7 @@ the result, proving the web-to-api wiring works end to end.
 ## Run locally
 
 ```
-pnpm --filter @playstop/types build   # once, or after editing packages/types
+pnpm build                             # builds every package in dependency order
 pnpm dev:web                            # http://localhost:5173
 ```
 

@@ -53,6 +53,12 @@ instances. All 14 checks passed. Findings that supersede the table below:
   outbound TCP both work fine. The long-form `mongodb://host1,host2,host3/?replicaSet=`
   string avoids SRV entirely. Render is unaffected, use SRV there.
 
+> **Superseded in places.** This is the milestone 2 design record, kept as written.
+> After it was finished, the shared packages were re-split: `@playstop/engine` now
+> holds every Zod schema plus the pure logic, and `@playstop/types` holds only
+> hand-written declarations and emits no JavaScript. Build commands and package
+> paths below reflect the older layout. `docs/ARCHITECTURE.md` is the current map.
+
 ## 0b. Measured latency, 2026-08-06, dev machine (India) to Singapore
 
 | Operation | p50 | p95 | p99 |

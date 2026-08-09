@@ -14,8 +14,7 @@
 
 ## Commands
 - `pnpm install` (root)
-- `pnpm --filter @playstop/types build` / `pnpm --filter @playstop/engine build` (run once, or
-  after editing either, before `dev`/`build`/`test` elsewhere)
+- `pnpm build` builds every package in dependency order. To build one app and only what it needs: `pnpm --filter "@playstop/api..." build`.
 - `pnpm dev:web` (port 5173) / `pnpm dev:api` (port 3001)
 - `pnpm typecheck` / `pnpm lint` / `pnpm build` / `pnpm test`
 - `pnpm --filter @playstop/api seed`: seed the demo venue and stations

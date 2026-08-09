@@ -5,8 +5,8 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @playstop/types build && pnpm --filter @playstop/api build
-    startCommand: node apps/api/dist/server.js
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter "@playstop/api..." build
+    startCommand: node apps/api/dist/main.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

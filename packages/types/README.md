@@ -7,7 +7,7 @@ code, no dependencies, no JavaScript emitted. Consumed by `@playstop/engine`, `@
 ## Build
 
 ```
-pnpm --filter @playstop/types build
+pnpm build
 ```
 
 Runs `tsc` with `emitDeclarationOnly` and produces `dist/*.d.ts`. There is nothing to run at

@@ -24,7 +24,7 @@ run `corepack enable` once if pnpm is not already installed globally).
 
 ```
 pnpm install
-pnpm --filter @playstop/types build    # run once, and again after editing packages/types
+pnpm build                             # builds every package in dependency order
 pnpm --filter @playstop/engine build   # run once, and again after editing packages/engine
 pnpm dev:api                            # http://localhost:3001
 pnpm dev:web                            # http://localhost:5173
@@ -91,7 +91,7 @@ Render instance, or move to Fly.io for an always-on box.
 Cloudflare Pages is configured in their dashboard, not a file in this repo. Create a project from
 this repository with:
 
-- Build command: `pnpm --filter @playstop/types build && pnpm --filter @playstop/web build`
+- Build command: `pnpm --filter "@playstop/web..." build`
 - Build output directory: `apps/web/dist`
 - Root directory: `/` (leave as repo root, the build command handles the monorepo path itself)
 - Node version: set the `NODE_VERSION` environment variable to `20`

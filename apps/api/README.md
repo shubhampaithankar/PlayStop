@@ -7,7 +7,7 @@ Express + TypeScript booking API for PlayStop. MongoDB (Atlas) is the source of 
 ## Run locally
 
 ```
-pnpm --filter @playstop/types build    # once, or after editing packages/types
+pnpm build                             # builds every package in dependency order
 pnpm --filter @playstop/engine build   # once, or after editing packages/engine
 pnpm dev:api                            # http://localhost:3001
 ```
