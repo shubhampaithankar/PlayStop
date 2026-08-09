@@ -14,6 +14,12 @@ test("healthResponseSchema accepts the documented shape", () => {
   assert.equal(parsed.status, "ok");
 });
 
+test("healthResponseSchema also accepts the degraded shape returned when Mongo is unreachable", () => {
+  const parsed = healthResponseSchema.parse({ status: "degraded", uptime: 12.5 });
+  assert.equal(parsed.status, "degraded");
+  assert.equal(healthResponseSchema.safeParse({ status: "down", uptime: 1 }).success, false);
+});
+
 test("objectIdSchema accepts a 24-char hex string and rejects anything else", () => {
   assert.equal(objectIdSchema.safeParse("507f1f77bcf86cd799439011").success, true);
   assert.equal(objectIdSchema.safeParse("not-an-object-id").success, false);
