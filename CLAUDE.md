@@ -37,16 +37,18 @@
   backstop. Never trust a hold as proof a cell is free. See `docs/milestone-2-spec.md` section 4.
 - Test file names must not match `test-*.js` / `*-test.js` / `*_test.js` / `*.test.js` unless
   they are actual tests: `node --test`'s default glob will run anything that matches, whether or
-  not it calls `test()`. Shared test helpers live in `testing-support.ts`.
+  not it calls `test()`. Shared test helpers live in `tests/testing-support.ts` (engine:
+  `packages/engine/tests/`; api: `apps/api/tests/`, mirroring the `src` layout it covers).
 - Any test that starts a server (`app.listen(0)`) must close it and call `closeTestResources()`
   in a `try/finally`, not just at the end of the function. A skipped cleanup after a failed
   assertion hangs the run instead of failing it.
 
 ## Testing
-- `node --test` against compiled output, three layers: pure-function engine tests (fast, no
-  I/O), low-volume integration tests against the shared Atlas dev database, and the concurrency
-  proof, gated behind `TEST_PROFILE=ci` and only run in CI against a real Mongo replica set and
-  Redis service container. Do not set `TEST_PROFILE=ci` locally against Atlas, it throttles at
+- `node --test` against compiled output (`dist-tests/`, kept separate from the runtime
+  build in `dist/`), three layers: pure-function engine tests (fast, no I/O), low-volume
+  integration tests against the shared Atlas dev database, and the concurrency proof, gated
+  behind `TEST_PROFILE=ci` and only run in CI against a real Mongo replica set and Redis
+  service container. Do not set `TEST_PROFILE=ci` locally against Atlas, it throttles at
   100 ops/sec and the burst will produce false failures.
 
 ## Key Files

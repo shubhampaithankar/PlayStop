@@ -38,6 +38,10 @@ instances. All 14 checks passed. Findings that supersede the table below:
   zero rows persisted. The `slot_claims` design holds on real infrastructure.
 - **Atlas M0 runs MongoDB 8.0.28**, not 7.x. CI's service container is pinned
   to 8.0 to match. Do not let those drift.
+- **Section 9's test paths are stale.** Tests moved out of `src` into a sibling `tests/`
+  directory in both packages, compiled by a separate `tsconfig.test.json` to `dist-tests/`
+  (kept out of the runtime `dist/`). Layer 1 is now `packages/engine/tests/*.test.ts`, layer 2
+  is `apps/api/tests/**/*.test.ts`, mirroring the `src` layout each file covers.
 - The duplicate key inside a transaction surfaces as `MongoBulkWriteError` with
   `code === 11000`, as specified.
 - **Upstash requires awaiting the ready state before any command.** With
@@ -1637,11 +1641,11 @@ The engine tests are the fast loop and they cover the hard part: every DST case,
 
 ### Layer 1: engine unit tests (pure, no I/O)
 
-`packages/engine/src/*.test.ts`. All 33 cases from section 2, plus the claim-builder cases and the pricing cases from section 3. No database, no network, no Docker. Run on a developer machine and in CI on every push.
+`packages/engine/tests/*.test.ts` (see section 0a: moved out of `src`). All 33 cases from section 2, plus the claim-builder cases and the pricing cases from section 3. No database, no network, no Docker. Run on a developer machine and in CI on every push.
 
 ### Layer 2: integration tests against the shared Atlas dev database
 
-`apps/api/src/**/*.test.ts`, excluding the concurrency files.
+`apps/api/tests/**/*.test.ts` (see section 0a: moved out of `src`), excluding the concurrency files.
 
 **Revision 1's isolation strategy (a fresh database per test file, dropped in `after()`) is not available.** Atlas M0 caps at 100 databases and 500 collections across the whole cluster, dropping a database another developer is using would be rude at best, and creating databases per run against a shared cluster is exactly how the collection cap gets hit by accident.
 

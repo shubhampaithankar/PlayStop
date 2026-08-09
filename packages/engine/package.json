@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "typecheck": "pnpm build && tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "pnpm build && node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node --test dist-tests/"
   },
   "dependencies": {

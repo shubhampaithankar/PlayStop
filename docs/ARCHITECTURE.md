@@ -33,12 +33,17 @@ modules/
 routes/                index.ts mounts /v1/venues/:venueSlug, slug-router.ts
                         wires the four module routers under it
 seed.ts                 inserts the demo venue and its stations, idempotent
-testing-support.ts      shared test helpers (see "Test file naming" below)
 ```
 
 Module convention: `route.ts` wires Express paths to a controller, `controller.ts` validates
 with Zod and orchestrates, `data.ts` holds the Mongo queries for that resource. A module never
 reaches into another module's `data.ts` directly, it goes through the controller.
+
+Tests live outside `src`, in `apps/api/tests`, mirroring the `src` layout they cover
+(`tests/modules/booking/controller.test.ts` tests `src/modules/booking/controller.ts`).
+`tests/testing-support.ts` holds the shared test helpers (see "Test file naming" below).
+`tsconfig.test.json` compiles `tests/` to `dist-tests/`, kept separate from the runtime
+build in `dist/` so a `node --test` run never picks up stale compiled tests.
 
 ## Dependency direction
 
@@ -113,6 +118,7 @@ Worth knowing before touching this code again.
   test harness is `testing-support.ts`, not `test-support.ts`, for exactly this reason: named
   `test-support.ts` it was picked up and executed as a suite by the runner, and because it opens
   a Redis connection as an import-time side effect, the run deadlocked instead of failing loudly.
+  Moving it into `tests/` was not permission to rename it, the same glob risk applies there too.
 - **Every test that starts a server must release it in `try/finally`.** Otherwise a failed
   assertion mid-test skips `server.close()` and `closeTestResources()`, the Mongo pool and the
   ioredis socket stay open, the event loop never drains, and a test *failure* becomes a silent
