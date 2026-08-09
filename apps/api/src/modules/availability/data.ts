@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, type Filter } from "mongodb";
 import type { OccupiedCell } from "@playstop/engine";
 import type { AvailabilityQuery } from "@playstop/engine";
 import { collections, type StationDoc } from "#libs/mongo/index.js";
@@ -8,7 +8,7 @@ export function findStationsForAvailability(
   stationId: AvailabilityQuery["stationId"],
   kind: AvailabilityQuery["kind"],
 ): Promise<StationDoc[]> {
-  const stationFilter: Record<string, unknown> = { venueId, status: "active" };
+  const stationFilter: Filter<StationDoc> = { venueId, status: "active" };
   if (stationId) stationFilter._id = new ObjectId(stationId);
   if (kind) stationFilter.kind = kind;
   return collections.stations().find(stationFilter).toArray();
