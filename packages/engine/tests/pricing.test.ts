@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceBooking } from "./pricing.js";
+import { priceBooking } from "@playstop/engine";
 
 test("priceBooking computes hourlyRateMinor * slotCount * gridMinutes / 60", () => {
   const total = priceBooking({ hourlyRateMinor: 15000 }, 30, 3);

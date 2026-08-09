@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeAvailability, type AvailabilityInput, type StationInput } from "./availability.js";
-import type { VenueSchedule } from "./grid.js";
+import { computeAvailability, type AvailabilityInput, type StationInput, type VenueSchedule } from "@playstop/engine";
 
 function allWeek(open: string, close: string) {
   return {

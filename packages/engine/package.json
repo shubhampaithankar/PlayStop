@@ -6,10 +6,13 @@
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./src/index.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test dist/"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "pnpm build && node -e \"require('node:fs').rmSync('dist-tests',{recursive:true,force:true})\" && tsc -p tsconfig.test.json && node --test dist-tests/"
   },
   "dependencies": {
     "@playstop/types": "workspace:*",

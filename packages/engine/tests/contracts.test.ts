@@ -1,9 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { healthResponseSchema } from "./health.js";
-import { objectIdSchema, isoInstantSchema, localDateSchema } from "./primitives.js";
-import { errorCodeSchema } from "./error.js";
-import { createBookingRequestSchema } from "./booking.js";
+import {
+  healthResponseSchema,
+  objectIdSchema,
+  isoInstantSchema,
+  localDateSchema,
+  errorCodeSchema,
+  createBookingRequestSchema,
+} from "@playstop/engine";
 
 test("healthResponseSchema accepts the documented shape", () => {
   const parsed = healthResponseSchema.parse({ status: "ok", uptime: 12.5 });

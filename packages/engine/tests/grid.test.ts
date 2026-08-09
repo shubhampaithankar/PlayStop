@@ -6,7 +6,7 @@ import {
   InvalidOpeningHoursError,
   InvalidGridMinutesError,
   type VenueSchedule,
-} from "./grid.js";
+} from "@playstop/engine";
 
 function allWeek(open: string, close: string) {
   return {
