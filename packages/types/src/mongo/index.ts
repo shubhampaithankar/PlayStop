@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 import type { StationKind } from "../station-kind/index.js";
+import type { BookingStatus } from "../booking-status/index.js";
 
 // Mongo document shapes, per docs/milestone-2-spec.md section 1. These are
 // the on-disk documents, not the wire contracts in packages/engine's
@@ -51,8 +52,6 @@ export interface StationDoc {
   maintenanceWindows: MaintenanceWindow[];
   createdAt: Date;
 }
-
-export type BookingStatus = "confirmed" | "cancelled";
 
 export interface BookingPlayer {
   name: string;

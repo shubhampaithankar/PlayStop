@@ -1,5 +1,11 @@
-// The one declaration of a station's kind. packages/engine builds
-// stationKindSchema (Zod, for wire validation) from this exact union via a
-// `satisfies` check, so the two can never drift silently the way
-// CellState/AvailabilityCell once did.
-export type StationKind = "ps5" | "ps3" | "ps2" | "racing-sim";
+// The one declaration of a station's kind. packages/engine passes this
+// straight to z.nativeEnum, so the wire schema and the type can never
+// drift: there is nowhere left to declare a second, competing list.
+export const STATION_KINDS = {
+  PS5: "ps5",
+  PS3: "ps3",
+  PS2: "ps2",
+  RACING_SIM: "racing-sim",
+} as const;
+
+export type StationKind = (typeof STATION_KINDS)[keyof typeof STATION_KINDS];

@@ -1,5 +1,7 @@
 import type { StationKind } from "../../station-kind/index.js";
-import type { ClosedReason, VenueSchedule } from "../grid/index.js";
+import type { ClosedReason } from "../../closed-reason/index.js";
+import type { CellState } from "../../cell-state/index.js";
+import type { VenueSchedule } from "../grid/index.js";
 
 export interface StationInput {
   readonly stationId: string;
@@ -29,11 +31,6 @@ export interface AvailabilityInput {
   readonly holds: readonly OccupiedCell[]; // from Redis; empty array when Redis is degraded
   readonly nowMs: number;
 }
-
-// The one declaration of a cell's availability state. packages/engine builds
-// cellStateSchema (Zod, for wire validation) from this exact union via a
-// `satisfies` check, replacing what used to be a runtime sync test.
-export type CellState = "free" | "held" | "booked" | "maintenance" | "past" | "too_far_ahead";
 
 export interface AvailabilityCell {
   readonly stationId: string;

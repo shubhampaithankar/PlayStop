@@ -2,6 +2,8 @@
 // No Zod here: these never cross the wire directly, they describe function
 // parameters and return values inside packages/engine.
 
+import type { ClosedReason } from "../../closed-reason/index.js";
+
 export interface VenueSchedule {
   readonly timezone: string;
   readonly gridMinutes: number;
@@ -20,11 +22,6 @@ export interface GridCell {
   readonly cellEndMs: number; // UTC epoch ms, exclusive
   readonly localLabel: string; // "2026-11-01 01:30 EDT"
 }
-
-// The one declaration of "why a business date has no cells". Shared by
-// GridResult and AvailabilityResult below, and by packages/engine's wire
-// schema for the same field, via a `satisfies` check.
-export type ClosedReason = "weekday_closed" | "blackout" | "no_valid_hours";
 
 export type GridResult =
   | {
