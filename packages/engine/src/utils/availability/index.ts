@@ -6,8 +6,8 @@ import type {
   OccupiedCell,
   StationInput,
 } from "@playstop/types";
-import type { GridCell } from "./grid.js";
-import { generateSlotGrid } from "./grid.js";
+import type { GridCell } from "../grid/index.js";
+import { generateSlotGrid } from "../grid/index.js";
 
 export type { AvailabilityCell, AvailabilityInput, AvailabilityResult, CellState, OccupiedCell, StationInput };
 

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { ClosedReason } from "@playstop/types";
-import { availabilityCellSchema } from "./cell.js";
-import { localDateSchema, objectIdSchema } from "./primitives.js";
-import { stationKindSchema } from "./station.js";
+import { availabilityCellSchema } from "../cell/index.js";
+import { localDateSchema, objectIdSchema } from "../primitives/index.js";
+import { stationKindSchema } from "../station/index.js";
 
 export const availabilityQuerySchema = z.object({
   date: localDateSchema, // required, the business date the session opens on

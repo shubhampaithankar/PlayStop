@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { isoInstantSchema, objectIdSchema } from "./primitives.js";
-import { stationKindSchema } from "./station.js";
+import { isoInstantSchema, objectIdSchema } from "../primitives/index.js";
+import { stationKindSchema } from "../station/index.js";
 
 // Crockford base32, no ambiguous glyphs (I, L, O, U excluded).
 const confirmationCodeSchema = z.string().regex(/^[0-9A-HJKMNP-TV-Z]{10}$/);

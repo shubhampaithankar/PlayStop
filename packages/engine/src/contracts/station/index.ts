@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { StationKind } from "@playstop/types";
-import { objectIdSchema } from "./primitives.js";
+import { objectIdSchema } from "../primitives/index.js";
 
 // The four values are declared exactly once, in packages/types' hand-written
 // StationKind union (also used by StationDoc and StationInput). `satisfies`

@@ -1,4 +1,4 @@
-import type { StationInput } from "./availability.js";
+import type { StationInput } from "../availability/index.js";
 
 /**
  * `hourlyRateMinor * slotCount * gridMinutes / 60`, integer minor units.

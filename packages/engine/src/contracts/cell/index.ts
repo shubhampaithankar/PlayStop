@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AvailabilityCell, CellState } from "@playstop/types";
-import { isoInstantSchema, objectIdSchema } from "./primitives.js";
+import { isoInstantSchema, objectIdSchema } from "../primitives/index.js";
 
 // The six values are declared exactly once, in packages/types' hand-written
 // CellState union. `satisfies` fails the build the moment this array drifts

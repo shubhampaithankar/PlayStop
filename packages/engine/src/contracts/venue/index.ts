@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { localDateSchema } from "./primitives.js";
-import { stationSummarySchema } from "./station.js";
+import { localDateSchema } from "../primitives/index.js";
+import { stationSummarySchema } from "../station/index.js";
 
 const openingHoursDaySchema = z
   .object({ open: z.string(), close: z.string() })

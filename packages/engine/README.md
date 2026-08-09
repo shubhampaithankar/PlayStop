@@ -7,7 +7,14 @@ operates on them. No I/O, no DB, no HTTP.
 
 ## Exports
 
-- `contracts/`: every Zod contract that crosses the web-to-api network boundary (health, venue,
+One folder per thing, each with an `index.ts`. A `utils.ts` or `constants.ts` joins a
+folder when it has something to hold, not before.
+
+```
+src/contracts/<name>/index.ts   the Zod contract and its inferred types
+src/utils/<name>/index.ts       the pure logic: grid, availability, pricing
+```
+- `contracts/<name>/`: every Zod contract that crosses the web-to-api network boundary (health, venue,
   availability, hold, booking) plus the shared primitives, error codes, and cell/station shapes
   they're built from. Each schema exports its inferred type alongside it, e.g. `export type
   HealthResponse = z.infer<typeof healthResponseSchema>`.

@@ -1,4 +1,4 @@
-export * from "./grid.js";
-export * from "./availability.js";
-export * from "./pricing.js";
+export * from "./utils/grid/index.js";
+export * from "./utils/availability/index.js";
+export * from "./utils/pricing/index.js";
 export * from "./contracts/index.js";

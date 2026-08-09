@@ -57,7 +57,7 @@
 - `apps/api/src/libs/mongo/index.ts`: Mongo client, typed collections, boot-time `createIndexes`
 - `apps/api/src/libs/redis/index.ts`: ioredis client, the hold acquire/release Lua scripts
 - `apps/web/src/App.tsx`: single page, pings `/health` on mount
-- `packages/engine/src/grid.ts`: `generateSlotGrid`, the DST- and midnight-crossing-aware core
+- `packages/engine/src/utils/grid/`: `generateSlotGrid`, the DST- and midnight-crossing-aware core
 - `scripts/assert-replica-set.mjs`: gates CI: proves the Mongo it's pointed at supports
   transactions before the suite runs
 
