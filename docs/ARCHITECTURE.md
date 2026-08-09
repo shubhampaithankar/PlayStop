@@ -9,8 +9,9 @@ apps/web          Vite + React 19 + TypeScript + Tailwind CSS v4, one page
 apps/api          Express 5 + TypeScript + Zod, MongoDB + Redis, the booking API
 packages/engine   Zod contracts, their inferred types, and pure logic: slot grid, availability,
                   pricing. Anything with runtime behavior lives here.
-packages/types    Hand-written TypeScript declarations only: no Zod, no dependencies, emits no
-                  JavaScript. Engine's compute vocabulary and the Mongo document shapes.
+packages/types    The domain's enum-like unions and their structural shapes, hand-written, no
+                  Zod, no dependencies. Emits a small amount of JavaScript: one keyed const
+                  object per union. Engine's compute vocabulary and the Mongo document shapes.
 ```
 
 Each has its own `README.md` for specifics. This file is the map between them.
@@ -68,51 +69,45 @@ packages/engine/src/
 packages/types/src/
   compute/<name>/     engine vocabulary, epoch milliseconds
   mongo/              on-disk document shapes
-  <name>/             standalone unions
+  <name>/             an enum-like value: keyed const object + the union derived from it
 ```
 
 Where a value lives follows one rule: **declared once, as close to its only consumer as
-possible, and lifted only when a second module genuinely needs it.** `CELL_STATES` sits in
-`constants/` because the availability logic assigns those states and the contract validates
-them. `MS_PER_MINUTE` sits there because grid, availability and pricing all divide by it.
+possible, and lifted only when a second module genuinely needs it.** `MS_PER_MINUTE` sits in
+`packages/engine/src/constants/` because grid, availability and pricing all divide by it.
 `CONFIRMATION_CODE_PATTERN` stays inside `contracts/booking/` because nothing else uses it.
 
-Enum-like constants are keyed objects consumed with `z.nativeEnum`:
+Enum-like values (`CellState`, `ClosedReason`, `BookingStatus`, `StationKind`) are declared once,
+in `packages/types`, as a keyed const object with the union derived from it:
 
 ```ts
-export const CELL_STATES = { FREE: "free", ... } as const satisfies Record<string, CellState>;
-export const cellStateSchema = z.nativeEnum(CELL_STATES);
+export const CELL_STATES = { FREE: "free", ... } as const;
+export type CellState = (typeof CELL_STATES)[keyof typeof CELL_STATES];
 ```
 
-The values are declared twice by necessity: as a union in `packages/types` (which is
-declarations only, so it cannot hold a runtime object) and as this keyed object in
-`packages/engine`. Two guards keep them in step, and they cover opposite directions:
-
-- `satisfies Record<string, CellState>` catches a value here that is NOT in the union.
-- The `_cellStatesAreExhaustive` line below it catches a union member that is NOT covered
-  here. `satisfies` does not do this, verified: adding a member to the union produces no
-  error on the object at all, so without the guard the Zod contract would silently start
-  rejecting a legitimate value.
-
-Both are compile errors. They replaced a runtime test that asserted the two lists matched,
-which could only fail after the fact.
+`packages/engine` imports the const object and passes it straight to `z.nativeEnum(CELL_STATES)`.
+There is only one place to add a member, so there is nothing to keep in sync and no drift to
+guard against: this replaced an earlier arrangement with the object re-declared in
+`packages/engine` and two compile-time guards to catch it drifting from the union. Deleting the
+second declaration deleted the need for the guards along with it.
 ## Dependency direction
 
 The rule is runtime versus compile-time. `packages/engine` holds every Zod schema, the types
 inferred from those contracts (`z.infer`), and the pure logic that operates on them; it depends on
-`zod`, `luxon`, and `packages/types`. `packages/types` holds only hand-written declarations
-(interfaces, type aliases, unions): zero runtime code, zero dependencies, no JS emitted. `apps/web`
-and `apps/api` may depend on either package directly. `packages/types` depends on nothing;
-`packages/engine` never gets imported by `packages/types`. The direction only ever goes app or
-engine toward types, never the reverse.
+`zod`, `luxon`, and `packages/types`. `packages/types` holds hand-written declarations
+(interfaces, type aliases, unions) plus, for enum-like values, the keyed const object each union
+is derived from: zero dependencies, and the only JavaScript it emits is those small const
+objects. `apps/web` and `apps/api` may depend on either package directly. `packages/types`
+depends on nothing; `packages/engine` never gets imported by `packages/types`. The direction only
+ever goes app or engine toward types, never the reverse.
 
 Any shape that crosses the web-to-api network boundary is a Zod schema, defined once in
 `packages/engine/src/contracts/` and imported on both sides, never redefined locally. Structural
 shapes that describe engine's own compute functions (`VenueSchedule`, `GridCell`, `StationInput`,
 `AvailabilityResult`, and so on) and the Mongo document shapes live in `packages/types`, hand-written since they never touch a schema. Where a wire schema and a compute type share a concept
-(a station's `kind`, a cell's `state`), the compute type in `packages/types` is the one
-declaration, and the schema in `packages/engine` is built from it with a `satisfies` check so the
-two cannot silently drift.
+(a station's `kind`, a cell's `state`), `packages/types` holds the one declaration, a keyed const
+object and the union derived from it, and `packages/engine` imports the const object straight
+into `z.nativeEnum`. There is nowhere left for the two to drift apart.
 
 ## Module aliases
 

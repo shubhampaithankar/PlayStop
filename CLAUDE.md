@@ -8,7 +8,8 @@
 - Web: Vite + React 19 + Tailwind CSS v4 (`@tailwindcss/vite`)
 - API: Express 5 + Zod + MongoDB (native driver, no Mongoose) + Redis (ioredis), dev and prod
   both run compiled output (`tsc -w` + `node --watch`)
-- Types: `packages/types` is declarations only, zero runtime, zero dependencies
+- Types: `packages/types` holds the domain unions, their structural shapes, and one keyed const
+  object per union (`CELL_STATES`, etc). Zero dependencies; emits only those small const objects
 - Engine: `packages/engine` holds everything with runtime behaviour: Zod contracts, their
   inferred types, shared constants, and the pure logic (slot grid, availability, pricing)
 - Package manager: pnpm workspaces (`packageManager` pinned in root `package.json`)
@@ -56,11 +57,12 @@ an empty stub to complete the pattern.
 - `packages/engine/src/utils/<name>/`: pure logic (grid, availability, pricing).
 - `packages/engine/src/constants/<name>/`: a value used on BOTH sides of the contracts/utils
   boundary, or across two utils modules, is lifted here rather than declared twice.
-- `packages/types/src/<name>/`: declarations only. `compute/` is engine vocabulary in epoch
-  milliseconds, `mongo/` is on-disk document shapes. No runtime code, so no `constants.ts`.
-- Enum-like constants are keyed objects (`CELL_STATES.FREE`), consumed with `z.nativeEnum`, and
-  `satisfies` the matching union in `packages/types` so drift is a compile error rather than a
-  test that has to notice.
+- `packages/types/src/<name>/`: `compute/` is engine vocabulary in epoch milliseconds, `mongo/`
+  is on-disk document shapes. An enum-like value (`CellState`, `ClosedReason`, `BookingStatus`,
+  `StationKind`) gets its own folder: a keyed const object (`CELL_STATES.FREE`) plus a union type
+  derived from it (`(typeof CELL_STATES)[keyof typeof CELL_STATES]`). One declaration, so there
+  is nothing left to keep in sync. `packages/engine` imports the const object and passes it to
+  `z.nativeEnum`.
 ## Testing
 - `node --test` against compiled output (`dist-tests/`, kept separate from the runtime
   build in `dist/`), three layers: pure-function engine tests (fast, no I/O), low-volume
