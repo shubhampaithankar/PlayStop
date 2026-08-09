@@ -6,11 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "noEmit": true,
-    // ponytail: shadcn's vendored components/ui/*.tsx (never hand-edited, regenerated
-    // by the CLI) are not written against exactOptionalPropertyTypes and fail to
-    // compile under it (calendar.tsx, sonner.tsx pass optional props without an
-    // explicit undefined). Scoped off here only; engine/api/types keep it on.
-    "exactOptionalPropertyTypes": false,
+
     "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"]
