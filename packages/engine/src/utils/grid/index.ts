@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import type { ClosedReason, GridCell, GridResult, VenueSchedule } from "@playstop/types";
-import { CLOSED_REASONS } from "../../constants/closed-reason/index.js";
+import { CLOSED_REASONS } from "@playstop/types";
 import { MINUTES_PER_HOUR, MS_PER_DAY, MS_PER_MINUTE } from "../../constants/time/index.js";
 import { LOCAL_LABEL_FORMAT } from "./constants.js";
 

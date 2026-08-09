@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { objectIdSchema } from "../primitives/index.js";
-import { STATION_KINDS } from "./constants.js";
+import { STATION_KINDS } from "@playstop/types";
 
 export const stationKindSchema = z.nativeEnum(STATION_KINDS);
 

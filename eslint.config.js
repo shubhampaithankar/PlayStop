@@ -8,9 +8,8 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    // A leading underscore marks a binding that exists for its type, not its
-    // value: the exhaustiveness guards in packages/engine/src/constants are
-    // assigned so TypeScript evaluates them, and never read.
+    // A leading underscore marks a binding that exists for its position, not
+    // its value (an unused parameter, an ignored destructured field).
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "error",

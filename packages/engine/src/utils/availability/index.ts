@@ -6,9 +6,9 @@ import type {
   OccupiedCell,
   StationInput,
 } from "@playstop/types";
+import { CELL_STATES } from "@playstop/types";
 import type { GridCell } from "../grid/index.js";
 import { generateSlotGrid } from "../grid/index.js";
-import { CELL_STATES } from "../../constants/cell/index.js";
 import { MS_PER_DAY, MS_PER_MINUTE } from "../../constants/time/index.js";
 
 export type { AvailabilityCell, AvailabilityInput, AvailabilityResult, CellState, OccupiedCell, StationInput };
