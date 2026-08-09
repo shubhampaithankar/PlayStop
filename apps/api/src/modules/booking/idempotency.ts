@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { MongoServerError, type ObjectId } from "mongodb";
+import { ERROR_CODES } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 
@@ -76,7 +77,7 @@ export async function claimIdempotency(
 
   if (existing.requestHash !== requestHash) {
     throw new DomainError(
-      "IDEMPOTENCY_KEY_REUSED",
+      ERROR_CODES.IDEMPOTENCY_KEY_REUSED,
       422,
       "This idempotency key was already used for a different request.",
     );
@@ -94,7 +95,7 @@ export async function claimIdempotency(
   if (takeover.modifiedCount === 1) {
     return { outcome: "claimed", id };
   }
-  throw new DomainError("REQUEST_IN_FLIGHT", 409, "This request is already being processed.", undefined, {
+  throw new DomainError(ERROR_CODES.REQUEST_IN_FLIGHT, 409, "This request is already being processed.", undefined, {
     "Retry-After": "1",
   });
 }

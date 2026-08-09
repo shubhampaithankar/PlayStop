@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { collections, type VenueDoc } from "#libs/mongo/index.js";
+import { ERROR_CODES } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 
 declare global {
@@ -14,7 +15,7 @@ declare global {
 // Every module handler calls this instead of restating the same
 // req.venue-or-throw check.
 export function requireVenue(req: Request): VenueDoc {
-  if (!req.venue) throw new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug.");
+  if (!req.venue) throw new DomainError(ERROR_CODES.VENUE_NOT_FOUND, 404, "No venue matches that slug.");
   return req.venue;
 }
 
@@ -24,7 +25,7 @@ export function requireVenue(req: Request): VenueDoc {
 export function resolveVenue(req: Request, _res: Response, next: NextFunction): void {
   const venueSlug = req.params.venueSlug;
   if (typeof venueSlug !== "string") {
-    next(new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug."));
+    next(new DomainError(ERROR_CODES.VENUE_NOT_FOUND, 404, "No venue matches that slug."));
     return;
   }
   collections
@@ -32,7 +33,7 @@ export function resolveVenue(req: Request, _res: Response, next: NextFunction): 
     .findOne({ slug: venueSlug })
     .then((venue) => {
       if (!venue) {
-        next(new DomainError("VENUE_NOT_FOUND", 404, "No venue matches that slug."));
+        next(new DomainError(ERROR_CODES.VENUE_NOT_FOUND, 404, "No venue matches that slug."));
         return;
       }
       req.venue = venue;

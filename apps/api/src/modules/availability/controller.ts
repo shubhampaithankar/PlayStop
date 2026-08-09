@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import {
   availabilityQuerySchema,
   computeAvailability,
+  ERROR_CODES,
   generateSlotGrid,
   type AvailabilityResponse,
   type OccupiedCell,
@@ -18,7 +19,7 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   const venue = requireVenue(req);
   const parsed = availabilityQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Invalid availability query.", parsed.error.flatten());
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid availability query.", parsed.error.flatten());
   }
   const { date, stationId, kind } = parsed.data;
   const schedule = venueScheduleOf(venue);
@@ -29,7 +30,7 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   const requestedDate = DateTime.fromISO(date, { zone: venue.timezone }).startOf("day");
   const daysFromToday = requestedDate.diff(localToday, "days").days;
   if (daysFromToday < -1 || daysFromToday > venue.maxAdvanceDays) {
-    throw new DomainError("DATE_OUT_OF_RANGE", 422, "That date is outside the bookable range.");
+    throw new DomainError(ERROR_CODES.DATE_OUT_OF_RANGE, 422, "That date is outside the bookable range.");
   }
 
   const stationDocs = await findStationsForAvailability(venue._id, stationId, kind);

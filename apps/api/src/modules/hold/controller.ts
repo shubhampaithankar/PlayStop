@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import {
   createHoldRequestSchema,
+  ERROR_CODES,
   priceBooking,
   releaseHoldRequestSchema,
   type CreateHoldResponse,
@@ -18,16 +19,16 @@ export async function createHold(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
   const parsed = createHoldRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Invalid hold request.", parsed.error.flatten());
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid hold request.", parsed.error.flatten());
   }
   const { stationId, startsAt, slotCount } = parsed.data;
 
   const station = await findStationById(new ObjectId(stationId), venue._id);
-  if (!station) throw new DomainError("STATION_NOT_FOUND", 404, "No active station matches that id.");
+  if (!station) throw new DomainError(ERROR_CODES.STATION_NOT_FOUND, 404, "No active station matches that id.");
 
   if (slotCount < station.minSlots || slotCount > station.maxSlots) {
     throw new DomainError(
-      "SLOT_COUNT_OUT_OF_RANGE",
+      ERROR_CODES.SLOT_COUNT_OUT_OF_RANGE,
       422,
       `slotCount must be between ${station.minSlots} and ${station.maxSlots} for this station.`,
     );
@@ -41,7 +42,7 @@ export async function createHold(req: Request, res: Response): Promise<void> {
 
   const existingClaim = await findConfirmedClaimInRange(venue._id, station._id, playMs);
   if (existingClaim) {
-    throw new DomainError("SLOT_TAKEN", 409, "Part of that time is already booked.");
+    throw new DomainError(ERROR_CODES.SLOT_TAKEN, 409, "Part of that time is already booked.");
   }
 
   const holdId = randomUUID();
@@ -49,13 +50,13 @@ export async function createHold(req: Request, res: Response): Promise<void> {
   const { acquired, degraded } = await acquireHold(venue._id, station._id, playMs, holdId, ttlMs);
   if (degraded) {
     throw new DomainError(
-      "HOLD_UNAVAILABLE",
+      ERROR_CODES.HOLD_UNAVAILABLE,
       503,
       "Holds are temporarily unavailable. Confirm without a holdId instead.",
     );
   }
   if (!acquired) {
-    throw new DomainError("SLOT_HELD", 409, "Part of that time is already held by someone else.");
+    throw new DomainError(ERROR_CODES.SLOT_HELD, 409, "Part of that time is already held by someone else.");
   }
 
   const lastPlayMs = playMs[playMs.length - 1] ?? startsAtMs;
@@ -81,7 +82,7 @@ export async function releaseHoldRoute(req: Request, res: Response): Promise<voi
   const venue = requireVenue(req);
   const parsed = releaseHoldRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Invalid release request.", parsed.error.flatten());
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid release request.", parsed.error.flatten());
   }
   const { holdId, stationId, startsAt, slotCount } = parsed.data;
   const startsAtMs = new Date(startsAt).getTime();

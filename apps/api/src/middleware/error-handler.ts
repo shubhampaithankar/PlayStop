@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ApiError } from "@playstop/engine";
+import { ERROR_CODES, type ApiError } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 
 // 4 params, registered last. Express 5 auto-forwards rejected promises
@@ -30,7 +30,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
     }),
   );
   const body: ApiError = {
-    error: { code: "INTERNAL", message: "Something went wrong. Please try again.", requestId },
+    error: { code: ERROR_CODES.INTERNAL, message: "Something went wrong. Please try again.", requestId },
   };
   res.status(500).json(body);
 }

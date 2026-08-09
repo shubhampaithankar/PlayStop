@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import {
   buildClaimCells,
+  ERROR_CODES,
   generateSlotGrid,
   SlotNotOnGridError,
   SlotOutOfWindowError,
@@ -47,7 +48,7 @@ function businessDateOf(startsAtMs: number, schedule: VenueSchedule): string {
     }
   }
   throw new DomainError(
-    "SLOT_NOT_ON_GRID",
+    ERROR_CODES.SLOT_NOT_ON_GRID,
     422,
     "That start time is not a legal cell boundary for this venue.",
   );
@@ -77,7 +78,7 @@ export function resolveRange(
   const grid = generateSlotGrid(schedule, businessDate);
   if (grid.kind !== "open") {
     throw new DomainError(
-      "SLOT_NOT_ON_GRID",
+      ERROR_CODES.SLOT_NOT_ON_GRID,
       422,
       "That start time is not a legal cell boundary for this venue.",
     );
@@ -88,10 +89,10 @@ export function resolveRange(
     cells = buildClaimCells(grid.cells, startsAtMs, slotCount, bufferSlotCount);
   } catch (err) {
     if (err instanceof SlotNotOnGridError) {
-      throw new DomainError("SLOT_NOT_ON_GRID", 422, err.message);
+      throw new DomainError(ERROR_CODES.SLOT_NOT_ON_GRID, 422, err.message);
     }
     if (err instanceof SlotOutOfWindowError) {
-      throw new DomainError("SLOT_OUT_OF_WINDOW", 422, err.message);
+      throw new DomainError(ERROR_CODES.SLOT_OUT_OF_WINDOW, 422, err.message);
     }
     throw err;
   }
@@ -100,7 +101,7 @@ export function resolveRange(
   const maxAdvanceCutoffMs = nowMs + schedule.maxAdvanceDays * 86_400_000;
   for (const ms of cells.playMs) {
     if (ms < leadCutoffMs || ms > maxAdvanceCutoffMs) {
-      throw new DomainError("SLOT_OUT_OF_WINDOW", 422, "That time is outside the bookable window.");
+      throw new DomainError(ERROR_CODES.SLOT_OUT_OF_WINDOW, 422, "That time is outside the bookable window.");
     }
   }
 
@@ -110,7 +111,7 @@ export function resolveRange(
     station.maintenanceWindows.some((w) => ms < w.endsAt.getTime() && ms + stride > w.startsAt.getTime()),
   );
   if (inMaintenance) {
-    throw new DomainError("SLOT_UNAVAILABLE", 409, "That time overlaps a maintenance window.");
+    throw new DomainError(ERROR_CODES.SLOT_UNAVAILABLE, 409, "That time overlaps a maintenance window.");
   }
 
   return { businessDate, playMs: cells.playMs, bufferMs: cells.bufferMs };
@@ -126,7 +127,7 @@ export function cellStartsForRange(venue: VenueDoc, startsAtMs: number, slotCoun
   const businessDate = businessDateOf(startsAtMs, schedule);
   const grid = generateSlotGrid(schedule, businessDate);
   if (grid.kind !== "open") {
-    throw new DomainError("SLOT_NOT_ON_GRID", 422, "not on grid");
+    throw new DomainError(ERROR_CODES.SLOT_NOT_ON_GRID, 422, "not on grid");
   }
   const { playMs } = buildClaimCells(grid.cells, startsAtMs, slotCount, 0);
   return playMs;

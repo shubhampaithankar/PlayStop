@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { ERROR_CODES } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 
 // ponytail: in-memory rate limit; per-instance only, so it does not hold
@@ -62,7 +63,7 @@ export function rateLimit(req: Request, _res: Response, next: NextFunction): voi
   if (!result.allowed) {
     next(
       new DomainError(
-        "RATE_LIMITED",
+        ERROR_CODES.RATE_LIMITED,
         429,
         "Too many requests. Slow down and try again.",
         undefined,

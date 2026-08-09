@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import {
   cancelBookingRequestSchema,
   createBookingRequestSchema,
+  ERROR_CODES,
   getBookingQuerySchema,
   idempotencyKeySchema,
   priceBooking,
@@ -30,17 +31,22 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
 
   const parsed = createBookingRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Invalid booking request.", parsed.error.flatten());
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid booking request.", parsed.error.flatten());
   }
   const body = parsed.data;
 
   const idempotencyKeyHeader = req.header("Idempotency-Key");
   if (idempotencyKeyHeader === undefined) {
-    throw new DomainError("IDEMPOTENCY_KEY_REQUIRED", 400, "Idempotency-Key header is required.");
+    throw new DomainError(ERROR_CODES.IDEMPOTENCY_KEY_REQUIRED, 400, "Idempotency-Key header is required.");
   }
   const keyParsed = idempotencyKeySchema.safeParse(idempotencyKeyHeader);
   if (!keyParsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Malformed Idempotency-Key header.", keyParsed.error.flatten());
+    throw new DomainError(
+      ERROR_CODES.VALIDATION_FAILED,
+      400,
+      "Malformed Idempotency-Key header.",
+      keyParsed.error.flatten(),
+    );
   }
   const idempotencyKey = keyParsed.data;
 
@@ -56,20 +62,20 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   try {
     const station = await findStationById(new ObjectId(body.stationId), venue._id);
     if (!station) {
-      throw new DomainError("STATION_NOT_FOUND", 404, "No active station matches that id.");
+      throw new DomainError(ERROR_CODES.STATION_NOT_FOUND, 404, "No active station matches that id.");
     }
     const activeStation = station;
 
     if (body.partySize > station.capacity) {
       throw new DomainError(
-        "PARTY_SIZE_EXCEEDS_CAPACITY",
+        ERROR_CODES.PARTY_SIZE_EXCEEDS_CAPACITY,
         422,
         `partySize exceeds this station's capacity of ${station.capacity}.`,
       );
     }
     if (body.slotCount < station.minSlots || body.slotCount > station.maxSlots) {
       throw new DomainError(
-        "SLOT_COUNT_OUT_OF_RANGE",
+        ERROR_CODES.SLOT_COUNT_OUT_OF_RANGE,
         422,
         `slotCount must be between ${station.minSlots} and ${station.maxSlots} for this station.`,
       );
@@ -86,10 +92,10 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
       const { values, degraded } = await mgetHolds(venue._id, activeStation._id, playMs);
       if (!degraded) {
         if (values.some((v) => v !== null && v !== body.holdId)) {
-          throw new DomainError("SLOT_HELD", 409, "Someone else holds part of that time.");
+          throw new DomainError(ERROR_CODES.SLOT_HELD, 409, "Someone else holds part of that time.");
         }
         if (values.some((v) => v === null)) {
-          throw new DomainError("HOLD_EXPIRED", 410, "That hold has expired.");
+          throw new DomainError(ERROR_CODES.HOLD_EXPIRED, 410, "That hold has expired.");
         }
       }
       // degraded: proceed. Redis being down must never block a booking.
@@ -175,14 +181,14 @@ export async function getBooking(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
   const parsed = getBookingQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    throw new DomainError("VALIDATION_FAILED", 400, "Missing or malformed code.", parsed.error.flatten());
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Missing or malformed code.", parsed.error.flatten());
   }
   const bookingIdParam = req.params.bookingId;
   if (typeof bookingIdParam !== "string" || !ObjectId.isValid(bookingIdParam)) {
-    throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
+    throw new DomainError(ERROR_CODES.BOOKING_NOT_FOUND, 404, "No booking matches that id.");
   }
   const booking = await findBookingByConfirmationCode(new ObjectId(bookingIdParam), venue._id, parsed.data.code);
-  if (!booking) throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
+  if (!booking) throw new DomainError(ERROR_CODES.BOOKING_NOT_FOUND, 404, "No booking matches that id.");
 
   const station = await findBookingStation(booking.stationId);
   if (!station) throw new Error("station referenced by booking not found");
@@ -195,7 +201,7 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   const parsed = cancelBookingRequestSchema.safeParse(req.body);
   if (typeof bookingIdParam !== "string" || !ObjectId.isValid(bookingIdParam) || !parsed.success) {
     throw new DomainError(
-      "VALIDATION_FAILED",
+      ERROR_CODES.VALIDATION_FAILED,
       400,
       "Invalid cancel request.",
       parsed.success ? undefined : parsed.error.flatten(),
@@ -205,7 +211,7 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   const { confirmationCode } = parsed.data;
 
   const booking = await findBookingByConfirmationCode(bookingId, venue._id, confirmationCode);
-  if (!booking) throw new DomainError("BOOKING_NOT_FOUND", 404, "No booking matches that id.");
+  if (!booking) throw new DomainError(ERROR_CODES.BOOKING_NOT_FOUND, 404, "No booking matches that id.");
 
   const station = await findBookingStation(booking.stationId);
   if (!station) throw new Error("station referenced by booking not found");
@@ -218,7 +224,7 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
 
   const nowMs = Date.now();
   if (nowMs >= booking.startsAt.getTime()) {
-    throw new DomainError("BOOKING_NOT_CANCELLABLE", 422, "This booking has already started or finished.");
+    throw new DomainError(ERROR_CODES.BOOKING_NOT_CANCELLABLE, 422, "This booking has already started or finished.");
   }
 
   const cancelledAt = new Date();

@@ -1,5 +1,5 @@
 import { MongoOperationTimeoutError, MongoServerError, type ObjectId } from "mongodb";
-import type { BookingResponse } from "@playstop/engine";
+import { ERROR_CODES, type BookingResponse } from "@playstop/engine";
 import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type StationDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 
@@ -48,16 +48,16 @@ export async function runConfirmTransaction(
       return runConfirmTransaction(idemId, buildDocs, 2);
     }
     if (err instanceof MongoOperationTimeoutError) {
-      throw new DomainError("BOOKING_TIMEOUT", 503, "Could not confirm in time. Try again.", undefined, {
+      throw new DomainError(ERROR_CODES.BOOKING_TIMEOUT, 503, "Could not confirm in time. Try again.", undefined, {
         "Retry-After": "2",
       });
     }
     if (err instanceof MongoServerError && err.code === 11000) {
       if (err.message.includes("uniq_slot_claim")) {
-        throw new DomainError("SLOT_TAKEN", 409, "Part of that time was just booked by someone else.");
+        throw new DomainError(ERROR_CODES.SLOT_TAKEN, 409, "Part of that time was just booked by someone else.");
       }
       if (err.message.includes("uniq_booking_code")) {
-        throw new DomainError("INTERNAL", 500, "Could not generate a unique confirmation code.");
+        throw new DomainError(ERROR_CODES.INTERNAL, 500, "Could not generate a unique confirmation code.");
       }
     }
     throw err;
@@ -122,7 +122,7 @@ export async function runCancelTransaction(
       return { lostRace: true };
     }
     if (err instanceof MongoOperationTimeoutError) {
-      throw new DomainError("BOOKING_TIMEOUT", 503, "Could not cancel in time. Try again.", undefined, {
+      throw new DomainError(ERROR_CODES.BOOKING_TIMEOUT, 503, "Could not cancel in time. Try again.", undefined, {
         "Retry-After": "2",
       });
     }
