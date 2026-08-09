@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { healthResponseSchema } from "@playstop/types";
+import { healthResponseSchema } from "@playstop/engine";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
