@@ -15,3 +15,12 @@ export const CELL_STATES = {
   PAST: "past",
   TOO_FAR_AHEAD: "too_far_ahead",
 } as const satisfies Record<string, CellState>;
+
+// `satisfies` above only checks that every value present is a valid CellState.
+// It does NOT check the reverse: a member added to the union in packages/types
+// would be silently missing here, and the Zod contract would then reject a
+// legitimate value. This fails to compile if that happens, naming the gap.
+type UncoveredCellState = Exclude<CellState, (typeof CELL_STATES)[keyof typeof CELL_STATES]>;
+const _cellStatesAreExhaustive: [UncoveredCellState] extends [never]
+  ? true
+  : { MISSING: UncoveredCellState } = true;

@@ -9,3 +9,12 @@ export const STATION_KINDS = {
   PS2: "ps2",
   RACING_SIM: "racing-sim",
 } as const satisfies Record<string, StationKind>;
+
+// `satisfies` above only checks that every value present is a valid StationKind.
+// It does NOT check the reverse: a member added to the union in packages/types
+// would be silently missing here, and the Zod contract would then reject a
+// legitimate value. This fails to compile if that happens, naming the gap.
+type UncoveredStationKind = Exclude<StationKind, (typeof STATION_KINDS)[keyof typeof STATION_KINDS]>;
+const _stationKindsAreExhaustive: [UncoveredStationKind] extends [never]
+  ? true
+  : { MISSING: UncoveredStationKind } = true;

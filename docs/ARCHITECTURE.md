@@ -84,9 +84,18 @@ export const CELL_STATES = { FREE: "free", ... } as const satisfies Record<strin
 export const cellStateSchema = z.nativeEnum(CELL_STATES);
 ```
 
-The `satisfies` check against the hand-written union in `packages/types` is what makes drift a
-compile error. It replaced a runtime test that asserted the two lists matched, which could only
-fail after the fact.
+The values are declared twice by necessity: as a union in `packages/types` (which is
+declarations only, so it cannot hold a runtime object) and as this keyed object in
+`packages/engine`. Two guards keep them in step, and they cover opposite directions:
+
+- `satisfies Record<string, CellState>` catches a value here that is NOT in the union.
+- The `_cellStatesAreExhaustive` line below it catches a union member that is NOT covered
+  here. `satisfies` does not do this, verified: adding a member to the union produces no
+  error on the object at all, so without the guard the Zod contract would silently start
+  rejecting a legitimate value.
+
+Both are compile errors. They replaced a runtime test that asserted the two lists matched,
+which could only fail after the fact.
 ## Dependency direction
 
 The rule is runtime versus compile-time. `packages/engine` holds every Zod schema, the types

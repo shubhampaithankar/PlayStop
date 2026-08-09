@@ -12,3 +12,12 @@ export const CLOSED_REASONS = {
   BLACKOUT: "blackout",
   NO_VALID_HOURS: "no_valid_hours",
 } as const satisfies Record<string, ClosedReason>;
+
+// `satisfies` above only checks that every value present is a valid ClosedReason.
+// It does NOT check the reverse: a member added to the union in packages/types
+// would be silently missing here, and the Zod contract would then reject a
+// legitimate value. This line fails to compile if that happens, naming the gap.
+type UncoveredClosedReason = Exclude<ClosedReason, (typeof CLOSED_REASONS)[keyof typeof CLOSED_REASONS]>;
+const _closedReasonsAreExhaustive: [UncoveredClosedReason] extends [never]
+  ? true
+  : { MISSING: UncoveredClosedReason } = true;

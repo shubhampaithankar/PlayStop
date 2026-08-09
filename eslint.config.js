@@ -8,6 +8,17 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // A leading underscore marks a binding that exists for its type, not its
+    // value: the exhaustiveness guards in packages/engine/src/constants are
+    // assigned so TypeScript evaluates them, and never read.
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { varsIgnorePattern: "^_", argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
     files: ["apps/web/**/*.{ts,tsx}"],
     plugins: {
       "react-hooks": reactHooks,
