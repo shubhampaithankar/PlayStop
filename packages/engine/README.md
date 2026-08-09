@@ -2,12 +2,12 @@
 
 Everything with runtime behavior that's shared by more than one app: `apps/api` and `apps/web`
 both need it, so it lives here instead of being duplicated or living inside one app and imported
-sideways into the other. Zod schemas, the types inferred from them, and the pure logic that
+sideways into the other. Zod contracts, the types inferred from them, and the pure logic that
 operates on them. No I/O, no DB, no HTTP.
 
 ## Exports
 
-- `schemas/`: every Zod schema that crosses the web-to-api network boundary (health, venue,
+- `contracts/`: every Zod contract that crosses the web-to-api network boundary (health, venue,
   availability, hold, booking) plus the shared primitives, error codes, and cell/station shapes
   they're built from. Each schema exports its inferred type alongside it, e.g. `export type
   HealthResponse = z.infer<typeof healthResponseSchema>`.

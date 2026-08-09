@@ -7,7 +7,7 @@ pnpm workspace monorepo, three packages:
 ```
 apps/web          Vite + React 19 + TypeScript + Tailwind CSS v4, one page
 apps/api          Express 5 + TypeScript + Zod, MongoDB + Redis, the booking API
-packages/engine   Zod schemas, their inferred types, and pure logic: slot grid, availability,
+packages/engine   Zod contracts, their inferred types, and pure logic: slot grid, availability,
                   pricing. Anything with runtime behavior lives here.
 packages/types    Hand-written TypeScript declarations only: no Zod, no dependencies, emits no
                   JavaScript. Engine's compute vocabulary and the Mongo document shapes.
@@ -43,7 +43,7 @@ reaches into another module's `data.ts` directly, it goes through the controller
 ## Dependency direction
 
 The rule is runtime versus compile-time. `packages/engine` holds every Zod schema, the types
-inferred from those schemas (`z.infer`), and the pure logic that operates on them; it depends on
+inferred from those contracts (`z.infer`), and the pure logic that operates on them; it depends on
 `zod`, `luxon`, and `packages/types`. `packages/types` holds only hand-written declarations
 (interfaces, type aliases, unions): zero runtime code, zero dependencies, no JS emitted. `apps/web`
 and `apps/api` may depend on either package directly. `packages/types` depends on nothing;
@@ -51,7 +51,7 @@ and `apps/api` may depend on either package directly. `packages/types` depends o
 engine toward types, never the reverse.
 
 Any shape that crosses the web-to-api network boundary is a Zod schema, defined once in
-`packages/engine/src/schemas/` and imported on both sides, never redefined locally. Structural
+`packages/engine/src/contracts/` and imported on both sides, never redefined locally. Structural
 shapes that describe engine's own compute functions (`VenueSchedule`, `GridCell`, `StationInput`,
 `AvailabilityResult`, and so on) and the Mongo document shapes live in `packages/types`, hand-written since they never touch a schema. Where a wire schema and a compute type share a concept
 (a station's `kind`, a cell's `state`), the compute type in `packages/types` is the one
