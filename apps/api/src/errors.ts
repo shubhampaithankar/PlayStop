@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@playstop/types";
+import type { ErrorCode } from "@playstop/engine";
 
 // One class, no subclass hierarchy, no factory. Routes throw it; Express 5
 // forwards it to the error handler, which serializes it. `headers` exists

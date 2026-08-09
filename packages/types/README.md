@@ -1,8 +1,8 @@
 # @playstop/types
 
-Shared TypeScript types and Zod schemas consumed by `@playstop/web` and `@playstop/api`. Both
-sides of the network boundary validate against the same definition instead of two hand-maintained
-copies drifting apart.
+Hand-written TypeScript declarations only: interfaces, type aliases, unions. No Zod, no runtime
+code, no dependencies, no JavaScript emitted. Consumed by `@playstop/engine`, `@playstop/web`, and
+`@playstop/api` purely as `import type`.
 
 ## Build
 
@@ -10,31 +10,37 @@ copies drifting apart.
 pnpm --filter @playstop/types build
 ```
 
-Run this once after cloning and again after any edit here. `apps/api` and `apps/web` import the
-compiled output (`dist/`), not the TypeScript source directly.
+Runs `tsc` with `emitDeclarationOnly` and produces `dist/*.d.ts`. There is nothing to run at
+runtime, so consumers resolve straight from `src/` via the `types` field in `package.json`
+(pnpm workspace linking) rather than importing `dist/`; the build step exists to catch this
+package's own type errors and to keep a compiled declaration output around, not because anything
+needs to execute it.
+
+There is no `test` script: a declarations-only package has nothing to execute. `pnpm -r run test`
+skips it.
 
 ## Layout
 
-- `src/api/`: request and response contracts, anything that crosses the web-to-api network
-  boundary: `health.ts`, `venue.ts`, `availability.ts`, `hold.ts`, `booking.ts`.
-- `src/common/`: shared domain shapes that aren't network contracts on their own but are reused
-  by both the API and `packages/engine`:
-  - `primitives.ts`: `objectIdSchema`, `isoInstantSchema` (requires a literal `Z`),
-    `localDateSchema`, `idempotencyKeySchema`
-  - `cell.ts`: `cellStateSchema` (the six availability states), `availabilityCellSchema`
-  - `station.ts`: `stationKindSchema`, `stationSummarySchema`
-  - `error.ts`: `errorCodeSchema` (the closed set of API error codes), `apiErrorSchema`
-- `src/index.ts` re-exports both `src/api/index.ts` and `src/common/index.ts`.
-
-Each schema exports its inferred type alongside it, e.g. `export type HealthResponse =
-z.infer<typeof healthResponseSchema>`.
+- `station-kind.ts`: `StationKind`, the one declaration of a station's kind, shared by
+  `StationDoc.kind`, `StationInput.kind`, and (via a `satisfies` check) `@playstop/engine`'s
+  `stationKindSchema`.
+- `compute/`: the hand-written shapes `@playstop/engine`'s pure functions take and return, and
+  nothing else -- `grid.ts` (`VenueSchedule`, `GridCell`, `GridResult`, `ClosedReason`),
+  `availability.ts` (`StationInput`, `OccupiedCell`, `AvailabilityInput`, `AvailabilityResult`,
+  `CellState`, `AvailabilityCell`).
+- `mongo.ts`: the on-disk Mongo document shapes (`VenueDoc`, `StationDoc`, `BookingDoc`,
+  `SlotClaimDoc`, `IdempotencyDoc`, `OpeningHours`), deliberately separate from the wire schemas
+  in `@playstop/engine`: a Mongo document and its wire representation are not always the same
+  shape (dates vs ISO strings, internal-only fields).
+- `index.ts` re-exports all three.
 
 ## Rule
 
-Any data that crosses the network between web and api gets its schema defined here first, under
-`src/api/`. Domain shapes that both `apps/api` and `packages/engine` need but that never cross
-the wire directly go under `src/common/`. Don't redefine a request, response, or domain shape
-locally in `apps/web`, `apps/api`, or `packages/engine`.
+Anything with runtime behavior -- a Zod schema, a type inferred from one via `z.infer`, a
+function -- belongs in `@playstop/engine`, not here. This package holds only structural
+declarations that exist purely at compile time. Where a concept here is also validated on the
+wire (a station's `kind`, a cell's `state`), the declaration here is the one source of truth and
+`@playstop/engine`'s schema is built to match it, not the other way around.
 
-This package depends on nothing in `apps/*` or `packages/engine`. The dependency direction only
-ever goes the other way.
+This package depends on nothing: no `apps/*`, no `packages/engine`, no third-party package. The
+dependency direction only ever goes the other way.

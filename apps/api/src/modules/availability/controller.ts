@@ -1,9 +1,10 @@
 import { DateTime } from "luxon";
 import type { Request, Response } from "express";
-import { availabilityQuerySchema, type AvailabilityResponse } from "@playstop/types";
 import {
+  availabilityQuerySchema,
   computeAvailability,
   generateSlotGrid,
+  type AvailabilityResponse,
   type OccupiedCell,
   type StationInput as EngineStationInput,
 } from "@playstop/engine";

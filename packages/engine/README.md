@@ -1,12 +1,16 @@
 # @playstop/engine
 
-Shared pure logic used by more than one app: `apps/api` and `apps/web` both need it, so it lives
-here instead of being duplicated or living inside one app and imported sideways into the other.
-No I/O, no DB, no HTTP, just functions over data, which is why it has no network dependency and
-runs offline.
+Everything with runtime behavior that's shared by more than one app: `apps/api` and `apps/web`
+both need it, so it lives here instead of being duplicated or living inside one app and imported
+sideways into the other. Zod schemas, the types inferred from them, and the pure logic that
+operates on them. No I/O, no DB, no HTTP.
 
 ## Exports
 
+- `schemas/`: every Zod schema that crosses the web-to-api network boundary (health, venue,
+  availability, hold, booking) plus the shared primitives, error codes, and cell/station shapes
+  they're built from. Each schema exports its inferred type alongside it, e.g. `export type
+  HealthResponse = z.infer<typeof healthResponseSchema>`.
 - `generateSlotGrid(venue, businessDate)`: resolves a session's opening and closing instants for
   one local business date and emits the 30-minute (or venue-configured) cell grid. Handles
   sessions that cross local midnight (a business day is the session that *opens* on that date, a
@@ -28,10 +32,10 @@ runs offline.
 pnpm --filter @playstop/engine test
 ```
 
-43 cases, `node --test` against the compiled output, no network. Covers both DST directions in
-both hemispheres, every midnight-crossing case, the claim-cell split, and pricing. This is the
-fast loop: pure-function tests catch timezone bugs a developer with no internet connection can
-still run and fix.
+49 cases, `node --test` against the compiled output, no network: the 43 pure-function cases
+(both DST directions in both hemispheres, every midnight-crossing case, the claim-cell split,
+pricing) plus 6 schema cases. This is the fast loop: a developer with no internet connection can
+still run and fix it.
 
 ## Build
 
@@ -41,5 +45,24 @@ pnpm --filter @playstop/engine build
 
 ## Dependencies
 
-Depends on `@playstop/types` for the shapes it takes and returns. Depends on nothing in
+`zod` and `luxon`, plus `@playstop/types` for the hand-written shapes its functions take and
+return (`VenueSchedule`, `StationInput`, `AvailabilityResult`, and so on). Depends on nothing in
 `apps/*`.
+
+`sideEffects: false` is set so a consumer that imports only a schema (e.g. `apps/web` importing
+`healthResponseSchema`) doesn't pull `luxon` into its bundle: `luxon` is only ever touched by the
+grid/availability functions, which stay unreferenced and get tree-shaken away.
+
+## A concept shared with a schema
+
+Where a compute type and a wire schema describe the same concept (a station's `kind`, a cell's
+`state`, a grid's closed `reason`), the compute type lives once in `@playstop/types` and the Zod
+schema here is built from it with a `satisfies` check, e.g.:
+
+```ts
+const cellStates = [...] as const satisfies readonly CellState[];
+export const cellStateSchema = z.enum(cellStates);
+```
+
+If the literal array in the schema ever drifts from the imported type, the build fails at that
+line instead of the drift being caught only by a runtime test.

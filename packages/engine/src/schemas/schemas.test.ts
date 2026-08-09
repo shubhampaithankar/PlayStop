@@ -1,10 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { healthResponseSchema } from "./api/health.js";
-import { objectIdSchema, isoInstantSchema, localDateSchema } from "./common/primitives.js";
-import { errorCodeSchema } from "./common/error.js";
-import { cellStateSchema } from "./common/cell.js";
-import { createBookingRequestSchema } from "./api/booking.js";
+import { healthResponseSchema } from "./health.js";
+import { objectIdSchema, isoInstantSchema, localDateSchema } from "./primitives.js";
+import { errorCodeSchema } from "./error.js";
+import { createBookingRequestSchema } from "./booking.js";
 
 test("healthResponseSchema accepts the documented shape", () => {
   const parsed = healthResponseSchema.parse({ status: "ok", uptime: 12.5 });
@@ -29,12 +28,6 @@ test("localDateSchema accepts YYYY-MM-DD only", () => {
 test("errorCodeSchema is a closed enum", () => {
   assert.equal(errorCodeSchema.safeParse("SLOT_TAKEN").success, true);
   assert.equal(errorCodeSchema.safeParse("NOT_A_REAL_CODE").success, false);
-});
-
-test("cellStateSchema matches the engine's CellState union", () => {
-  for (const state of ["free", "held", "booked", "maintenance", "past", "too_far_ahead"]) {
-    assert.equal(cellStateSchema.safeParse(state).success, true);
-  }
 });
 
 test("createBookingRequestSchema rejects a body missing the player", () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { AvailabilityResponse, VenueResponse } from "@playstop/types";
+import type { AvailabilityResponse, VenueResponse } from "@playstop/engine";
 import {
   futureSessionCells,
   seedVenue,

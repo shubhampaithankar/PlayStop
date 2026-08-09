@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { VenueResponse } from "@playstop/types";
+import type { VenueResponse } from "@playstop/engine";
 import { requireVenue } from "#middleware/venue.js";
 import { findActiveStations } from "#modules/venue/data.js";
 

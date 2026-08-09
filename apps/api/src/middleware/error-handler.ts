@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ApiError } from "@playstop/types";
+import type { ApiError } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 
 // 4 params, registered last. Express 5 auto-forwards rejected promises

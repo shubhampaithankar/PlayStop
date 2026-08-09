@@ -1,9 +1,13 @@
 import { z } from "zod";
+import type { StationKind } from "@playstop/types";
 import { objectIdSchema } from "./primitives.js";
 
-export const stationKindSchema = z.enum(["ps5", "ps3", "ps2", "racing-sim"]);
+// The four values are declared exactly once, in packages/types' hand-written
+// StationKind union (also used by StationDoc and StationInput). `satisfies`
+// fails the build the moment this array drifts from that union.
+const stationKinds = ["ps5", "ps3", "ps2", "racing-sim"] as const satisfies readonly StationKind[];
 
-export type StationKind = z.infer<typeof stationKindSchema>;
+export const stationKindSchema = z.enum(stationKinds);
 
 export const stationSummarySchema = z.object({
   id: objectIdSchema,

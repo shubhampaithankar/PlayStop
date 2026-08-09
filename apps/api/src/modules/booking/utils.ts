@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { BookingResponse, CreateBookingRequest } from "@playstop/types";
+import type { BookingResponse, CreateBookingRequest } from "@playstop/engine";
 import type { BookingDoc } from "#libs/mongo/index.js";
 import { localLabelOf } from "#modules/venue/utils.js";
 

@@ -1,8 +1,8 @@
 import { MongoClient, type Collection, type Db } from "mongodb";
 import { env } from "#env.js";
-import type { VenueDoc, StationDoc, BookingDoc, SlotClaimDoc, IdempotencyDoc } from "./types.js";
+import type { VenueDoc, StationDoc, BookingDoc, SlotClaimDoc, IdempotencyDoc } from "@playstop/types";
 
-export * from "./types.js";
+export type { VenueDoc, StationDoc, BookingDoc, SlotClaimDoc, IdempotencyDoc, OpeningHours } from "@playstop/types";
 
 const client = new MongoClient(env.MONGODB_URI);
 let db: Db | undefined;

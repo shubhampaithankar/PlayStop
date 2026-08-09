@@ -1,5 +1,5 @@
 import { MongoOperationTimeoutError, MongoServerError, type ObjectId } from "mongodb";
-import type { BookingResponse } from "@playstop/types";
+import type { BookingResponse } from "@playstop/engine";
 import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type StationDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 

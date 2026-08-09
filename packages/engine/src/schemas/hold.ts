@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isoInstantSchema, objectIdSchema } from "../common/primitives.js";
+import { isoInstantSchema, objectIdSchema } from "./primitives.js";
 
 export const createHoldRequestSchema = z.object({
   stationId: objectIdSchema,

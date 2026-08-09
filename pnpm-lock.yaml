@@ -81,6 +81,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@playstop/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@playstop/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -118,16 +121,15 @@ importers:
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/luxon':
         specifier: ^3.7.1
         version: 3.7.3
 
-  packages/types:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+  packages/types: {}
 
 packages:
 

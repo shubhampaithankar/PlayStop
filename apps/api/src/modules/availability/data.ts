@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import type { OccupiedCell } from "@playstop/engine";
-import type { AvailabilityQuery } from "@playstop/types";
+import type { AvailabilityQuery } from "@playstop/engine";
 import { collections, type StationDoc } from "#libs/mongo/index.js";
 
 export function findStationsForAvailability(

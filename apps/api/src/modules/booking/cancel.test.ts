@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { ObjectId } from "mongodb";
-import type { AvailabilityResponse, BookingResponse } from "@playstop/types";
+import type { AvailabilityResponse, BookingResponse } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
 import {
   futureSessionCells,

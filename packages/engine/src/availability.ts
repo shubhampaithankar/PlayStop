@@ -1,54 +1,15 @@
-import type { GridCell, VenueSchedule } from "./grid.js";
+import type {
+  AvailabilityCell,
+  AvailabilityInput,
+  AvailabilityResult,
+  CellState,
+  OccupiedCell,
+  StationInput,
+} from "@playstop/types";
+import type { GridCell } from "./grid.js";
 import { generateSlotGrid } from "./grid.js";
 
-export interface StationInput {
-  readonly stationId: string;
-  readonly slug: string;
-  readonly name: string;
-  readonly kind: "ps5" | "ps3" | "ps2" | "racing-sim";
-  readonly capacity: number;
-  readonly hourlyRateMinor: number;
-  readonly minSlots: number;
-  readonly maxSlots: number;
-  readonly maintenanceWindows: readonly {
-    readonly startsAtMs: number;
-    readonly endsAtMs: number;
-  }[];
-}
-
-export interface OccupiedCell {
-  readonly stationId: string;
-  readonly cellStartMs: number;
-}
-
-export interface AvailabilityInput {
-  readonly venue: VenueSchedule & { readonly leadTimeMinutes: number; readonly maxAdvanceDays: number };
-  readonly businessDate: string;
-  readonly stations: readonly StationInput[]; // caller passes ACTIVE stations only
-  readonly claims: readonly OccupiedCell[]; // confirmed slot_claims, from Mongo
-  readonly holds: readonly OccupiedCell[]; // from Redis; empty array when Redis is degraded
-  readonly nowMs: number;
-}
-
-export type CellState = "free" | "held" | "booked" | "maintenance" | "past" | "too_far_ahead";
-
-export interface AvailabilityCell {
-  readonly stationId: string;
-  readonly startsAt: string; // ISO 8601 UTC
-  readonly endsAt: string;
-  readonly localLabel: string;
-  readonly state: CellState;
-}
-
-export interface AvailabilityResult {
-  readonly businessDate: string;
-  readonly timezone: string;
-  readonly gridMinutes: number;
-  readonly closed: null | { readonly reason: "weekday_closed" | "blackout" | "no_valid_hours" };
-  readonly cells: readonly AvailabilityCell[];
-  readonly windowStartMs: number;
-  readonly windowEndMs: number;
-}
+export type { AvailabilityCell, AvailabilityInput, AvailabilityResult, CellState, OccupiedCell, StationInput };
 
 function occupiedKey(stationId: string, cellStartMs: number): string {
   return `${stationId}:${cellStartMs}`;

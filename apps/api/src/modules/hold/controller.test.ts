@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import type { CreateHoldResponse } from "@playstop/types";
+import type { CreateHoldResponse } from "@playstop/engine";
 import {
   futureSessionCells,
   seedVenue,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import type { BookingResponse, CreateHoldResponse } from "@playstop/types";
+import type { BookingResponse, CreateHoldResponse } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
 import { hashRequest } from "#modules/booking/idempotency.js";
 import {

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { ApiError } from "@playstop/types";
+import type { ApiError } from "@playstop/engine";
 
 // Fires only when nothing above matched at all (an unknown route, not a
 // known-but-absent resource like an unknown venue slug, which raises its

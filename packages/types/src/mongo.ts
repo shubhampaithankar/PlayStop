@@ -1,8 +1,10 @@
 import type { ObjectId } from "mongodb";
+import type { StationKind } from "./station-kind.js";
 
 // Mongo document shapes, per docs/milestone-2-spec.md section 1. These are
-// the on-disk documents, not the wire contracts in @playstop/types: the
-// spec keeps network schemas and Mongo documents deliberately separate.
+// the on-disk documents, not the wire contracts in packages/engine's
+// schemas: the spec keeps network schemas and Mongo documents deliberately
+// separate.
 
 export type Weekday = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 
@@ -28,7 +30,6 @@ export interface VenueDoc {
   createdAt: Date;
 }
 
-export type StationKind = "ps5" | "ps3" | "ps2" | "racing-sim";
 export type StationStatus = "active" | "retired";
 
 export interface MaintenanceWindow {

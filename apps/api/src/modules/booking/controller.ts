@@ -5,8 +5,8 @@ import {
   createBookingRequestSchema,
   getBookingQuerySchema,
   idempotencyKeySchema,
-} from "@playstop/types";
-import { priceBooking } from "@playstop/engine";
+  priceBooking,
+} from "@playstop/engine";
 import type { BookingDoc, SlotClaimDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
