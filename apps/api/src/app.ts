@@ -16,6 +16,12 @@ import { attachSentryErrorHandler } from "#libs/sentry/index.js";
 export function buildApp(): Express {
   const app = express();
 
+  // Trust exactly one proxy hop (Render's edge proxy). Express then reads
+  // req.ip from the entry the proxy appended to X-Forwarded-For, not from
+  // whatever a client tries to prepend, so rate-limit keys land on the
+  // real client instead of the proxy's shared address.
+  app.set("trust proxy", 1);
+
   // Cross-cutting middleware, in order (spec section 6).
   app.use(express.json({ limit: "16kb" }));
   // exposedHeaders is required for the browser to read these at all. Without
@@ -42,7 +48,8 @@ app.use(
         res.json(body);
       })
       .catch(() => {
-        res.status(503).json({ status: "degraded", uptime: process.uptime() });
+        const body: HealthResponse = { status: "degraded", uptime: process.uptime() };
+        res.status(503).json(body);
       });
   });
 
