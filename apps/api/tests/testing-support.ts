@@ -19,6 +19,17 @@ import { buildApp } from "#app.js";
 // TEST_PROFILE=ci.
 export const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
+// If CI silently drops TEST_PROFILE=ci (a typo in ci.yml, the env block
+// moving off the `pnpm test` step), CI_ONLY goes false and all 8 gated
+// concurrency tests are skipped without turning the run red. Fail loudly
+// instead of trusting a green run to mean the gate fired. CI is unset
+// locally, so this never fires outside CI.
+if (process.env.CI && !CI_ONLY) {
+  throw new Error(
+    "CI is set but TEST_PROFILE is not 'ci' -- the concurrency proof gate would be silently skipped",
+  );
+}
+
 let mongoReady: Promise<void> | undefined;
 
 export function ensureMongoReady(): Promise<void> {
