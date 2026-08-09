@@ -12,6 +12,12 @@ import { test } from "node:test";
 
 const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
+// 20 requests against one venue in one 60s window would blow past the real
+// 30/min ceiling and come back RATE_LIMITED instead of exercising the
+// transaction path. Same override as concurrency-confirm.test.ts, set
+// before either dynamic import() of the app modules.
+process.env.RATE_LIMIT_MAX_REQUESTS = "2000";
+
 // 20 concurrent 3-cell bookings whose ranges pairwise overlap without
 // coinciding: request i claims cells [i, i+1, i+2]. No transaction, or a
 // transaction that leaves a partial write on conflict, would show up as a
@@ -55,13 +61,25 @@ test(
         `requests not observed to overlap (${startSpreadMs}ms spread)`,
       );
 
-      const timeouts = await Promise.all(
+      // Every non-winner must be a genuine loser of the transaction race
+      // (409 SLOT_TAKEN), not a RATE_LIMITED or VALIDATION_FAILED that
+      // happened to also carry a non-201 status.
+      const classified = await Promise.all(
         results.map(async (r) => {
           if (r.status === "rejected") throw new Error(`fetch rejected: ${String(r.reason)}`);
-          return r.value.status === 503;
+          const res = r.value;
+          if (res.status === 201) return { status: 201 as const };
+          const body = (await res.json()) as { error: { code: string } };
+          return { status: res.status, code: body.error.code };
         }),
       );
-      assert.equal(timeouts.filter(Boolean).length, 0, "expected zero BOOKING_TIMEOUT");
+      const timeouts = classified.filter((c) => c.status === 503);
+      assert.equal(timeouts.length, 0, "expected zero BOOKING_TIMEOUT");
+      for (const c of classified) {
+        if (c.status === 201) continue;
+        assert.equal(c.status, 409, `expected 409, got ${c.status} ${"code" in c ? c.code : ""}`);
+        assert.equal(c.code, "SLOT_TAKEN", `expected SLOT_TAKEN, got ${c.code}`);
+      }
 
       const survivors = await collections
         .bookings()
