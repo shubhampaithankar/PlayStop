@@ -5,10 +5,10 @@ import { ObjectId } from "mongodb";
 import type { AvailabilityResponse, BookingResponse } from "@playstop/types";
 import { collections } from "#libs/mongo/index.js";
 import {
-  closeTestResources,
   futureSessionCells,
   seedVenue,
   startTestServer,
+  teardown,
   wipeVenue,
   type TestServer,
   type TestVenue,
@@ -187,8 +187,6 @@ test("cancel routes", async (t) => {
       assert.equal(stillConfirmedBody.status, "confirmed");
     });
   } finally {
-    await wipeVenue(venue.venueId);
-    await server.close();
-    await closeTestResources();
+    await teardown(venue, server);
   }
 });

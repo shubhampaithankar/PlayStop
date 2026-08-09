@@ -5,10 +5,10 @@ import type { BookingResponse, CreateHoldResponse } from "@playstop/types";
 import { collections } from "#libs/mongo/index.js";
 import { hashRequest } from "#modules/booking/idempotency.js";
 import {
-  closeTestResources,
   futureSessionCells,
   seedVenue,
   startTestServer,
+  teardown,
   wipeVenue,
   type TestServer,
   type TestVenue,
@@ -464,8 +464,6 @@ test("booking confirm and read routes", async (t) => {
       },
     );
   } finally {
-    await wipeVenue(venue.venueId);
-    await server.close();
-    await closeTestResources();
+    await teardown(venue, server);
   }
 });

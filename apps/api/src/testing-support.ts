@@ -226,3 +226,36 @@ export async function closeTestResources(): Promise<void> {
   await mongoClient().close();
   redis.disconnect();
 }
+
+// Every test file's outer try/finally calls this. venue and server are
+// optional because setup can throw before either is assigned -- reading
+// .venueId or .close() off that unassigned value in a plain finally block
+// throws a TypeError that masks the real setup error, and skips
+// closeTestResources(), which is what stops the file hanging on a dangling
+// ioredis client. Each step is isolated so one failing step (including a
+// setup failure itself) never blocks the others, and closeTestResources()
+// always runs last regardless of what happened above it.
+export async function teardown(
+  venue: Pick<TestVenue, "venueId"> | undefined,
+  server: Pick<TestServer, "close"> | undefined,
+): Promise<void> {
+  if (venue) {
+    try {
+      await wipeVenue(venue.venueId);
+    } catch (err) {
+      console.warn("teardown: wipeVenue failed", err);
+    }
+  }
+  if (server) {
+    try {
+      await server.close();
+    } catch (err) {
+      console.warn("teardown: server.close failed", err);
+    }
+  }
+  try {
+    await closeTestResources();
+  } catch (err) {
+    console.warn("teardown: closeTestResources failed", err);
+  }
+}

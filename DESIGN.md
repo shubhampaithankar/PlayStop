@@ -83,10 +83,16 @@ already carried elsewhere. Never use them as the only boundary of an interactive
 
 Three faces by role, self-hosted (fontsource), subset to latin:
 
-- **Display: Saira SemiCondensed** 600/700. Uppercase, `tracking-wide` (0.025em). Headings,
+- **Display: Saira SemiCondensed** 700 only (600 dropped to save a request, see the note below). Uppercase, `tracking-wide` (0.025em). Headings,
   station IDs, the wordmark, section eyebrows. This is the motorsport voice; nowhere else.
-- **Body: IBM Plex Sans** 400/500/600. Everything conversational: labels, form fields,
+- **Body: IBM Plex Sans** 400/600 (500 dropped, see the note below). Everything conversational: labels, form fields,
   paragraphs, buttons.
+> Font budget, decided 2026-08-09: six files, roughly 120 KB. The original
+> contract specified eight (Saira 600, Plex Sans 500 as well). Those two were
+> cut for about 40 KB and two fewer requests on a cold start, which matters
+> because the API is on a spin-down free tier and first paint already waits
+> on it. Reinstate them only with a measured reason.
+
 - **Utility: IBM Plex Mono** 400/500 with `font-variant-numeric: tabular-nums`. Every time
   label, price, countdown, confirmation code, date. If it is a number a player compares or
   copies, it is mono.

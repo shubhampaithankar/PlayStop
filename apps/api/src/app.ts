@@ -18,7 +18,16 @@ export function buildApp(): Express {
 
   // Cross-cutting middleware, in order (spec section 6).
   app.use(express.json({ limit: "16kb" }));
-  app.use(cors({ origin: env.WEB_ORIGIN }));
+  // exposedHeaders is required for the browser to read these at all. Without
+// it the server still sends them and cross-origin JS still cannot see them,
+// which silently breaks request correlation and Retry-After handling in the
+// web app.
+app.use(
+  cors({
+    origin: env.WEB_ORIGIN,
+    exposedHeaders: ["X-Request-Id", "Retry-After", "Idempotent-Replay"],
+  }),
+);
   app.use(requestId);
   app.use(requestLogger);
 

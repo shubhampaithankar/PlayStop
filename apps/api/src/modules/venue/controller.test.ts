@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AvailabilityResponse, VenueResponse } from "@playstop/types";
 import {
-  closeTestResources,
   futureSessionCells,
   seedVenue,
   startTestServer,
-  wipeVenue,
+  teardown,
   type TestServer,
   type TestVenue,
 } from "#testing-support.js";
@@ -73,8 +72,6 @@ test("venue routes", async (t) => {
       },
     );
   } finally {
-    await wipeVenue(venue.venueId);
-    await server.close();
-    await closeTestResources();
+    await teardown(venue, server);
   }
 });

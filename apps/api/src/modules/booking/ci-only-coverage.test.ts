@@ -25,8 +25,9 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
-      await import("#testing-support.js");
+    const { futureSessionCells, seedVenue, startTestServer, teardown, wipeVenue } = await import(
+      "#testing-support.js"
+    );
 
     let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
     try {
@@ -67,8 +68,7 @@ test(
         }
       }
     } finally {
-      if (server) await server.close();
-      await closeTestResources();
+      await teardown(undefined, server);
     }
   },
 );
@@ -82,8 +82,9 @@ test(
   "O: a midnight-crossing booking shows up on its business date only",
   { skip: !CI_ONLY },
   async () => {
-    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
-      await import("#testing-support.js");
+    const { futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+      "#testing-support.js"
+    );
 
     let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
     let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
@@ -132,9 +133,7 @@ test(
         "the booked instants must not appear under the following calendar date",
       );
     } finally {
-      if (venue) await wipeVenue(venue.venueId);
-      if (server) await server.close();
-      await closeTestResources();
+      await teardown(venue, server);
     }
   },
 );
@@ -147,8 +146,9 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { closeTestResources, futureSessionCells, seedVenue, startTestServer, wipeVenue } =
-      await import("#testing-support.js");
+    const { futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+      "#testing-support.js"
+    );
 
     let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
     let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
@@ -173,9 +173,7 @@ test(
         .countDocuments({ venueId: venue.venueId, stationId: venue.stationIds[0]! });
       assert.equal(claimCount, 0);
     } finally {
-      if (venue) await wipeVenue(venue.venueId);
-      if (server) await server.close();
-      await closeTestResources();
+      await teardown(venue, server);
     }
   },
 );

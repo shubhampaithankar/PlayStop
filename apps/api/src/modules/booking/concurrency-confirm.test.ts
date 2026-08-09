@@ -46,14 +46,9 @@ async function classify(result: PromiseSettledResult<Response>): Promise<Classif
 // round: a single round can pass on timing luck.
 test("A: N concurrent confirms yield exactly one booking", { skip: !CI_ONLY }, async () => {
   const { collections } = await import("#libs/mongo/index.js");
-  const {
-    closeTestResources,
-    fireBurst,
-    futureSessionCells,
-    seedVenue,
-    startTestServer,
-    wipeVenue,
-  } = await import("#testing-support.js");
+  const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    "#testing-support.js"
+  );
 
   let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
   let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
@@ -128,9 +123,7 @@ test("A: N concurrent confirms yield exactly one booking", { skip: !CI_ONLY }, a
       assert.equal(claimCount, 1);
     }
   } finally {
-    if (venue) await wipeVenue(venue.venueId);
-    if (server) await server.close();
-    await closeTestResources();
+    await teardown(venue, server);
   }
 });
 
@@ -144,14 +137,9 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const {
-      closeTestResources,
-      fireBurst,
-      futureSessionCells,
-      seedVenue,
-      startTestServer,
-      wipeVenue,
-    } = await import("#testing-support.js");
+    const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+      "#testing-support.js"
+    );
 
     let server: Awaited<ReturnType<typeof startTestServer>> | undefined;
     let venue: Awaited<ReturnType<typeof seedVenue>> | undefined;
@@ -215,9 +203,7 @@ test(
       });
       assert.equal(claimCount, 1);
     } finally {
-      if (venue) await wipeVenue(venue.venueId);
-      if (server) await server.close();
-      await closeTestResources();
+      await teardown(venue, server);
     }
   },
 );

@@ -3,10 +3,10 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import type { CreateHoldResponse } from "@playstop/types";
 import {
-  closeTestResources,
   futureSessionCells,
   seedVenue,
   startTestServer,
+  teardown,
   wipeVenue,
   type TestServer,
   type TestVenue,
@@ -172,8 +172,6 @@ test("hold routes", async (t) => {
       assert.equal(res.status, 204);
     });
   } finally {
-    await wipeVenue(venue.venueId);
-    await server.close();
-    await closeTestResources();
+    await teardown(venue, server);
   }
 });
