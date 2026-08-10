@@ -4,9 +4,10 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
     "outDir": "dist-tests",
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src/vite-env.d.ts", "src/lib/api.ts", "tests"]
+  "include": ["src/vite-env.d.ts", "src/lib/api.ts", "src/router.tsx", "tests"]
 }
