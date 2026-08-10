@@ -59,6 +59,8 @@ before changing code in that area; do not infer the rule from surrounding code.
 - `scripts/assert-replica-set.mjs`: CI gate, proves Mongo supports transactions before the suite
 
 ## Reference
+- @docs/ORIENTATION.md: read first on a cold start. Why things are as they are, what is
+  settled, what has already gone wrong
 - @.claude/rules/lang.md
 - @README.md: local dev and deploy (Cloudflare Pages, Render, keepalive ping)
 - @docs/ARCHITECTURE.md: layout, dependency direction, deployment, hard-won lessons

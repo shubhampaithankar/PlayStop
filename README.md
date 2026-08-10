@@ -124,7 +124,8 @@ needed for those.
 
 ## Not yet built
 
-shadcn/ui, TanStack Router/Query/Table, the booking UI, auth, and accounts land in milestone 3
-and are not yet in this repository. Docker is not planned at all: local development runs against
+The booking UI, auth, and accounts land in milestone 3. shadcn/ui is installed and themed;
+TanStack Router and Query arrive with the router shell. TanStack Table was evaluated and
+dropped, because nothing in this UI is tabular. Docker is not planned at all: local development runs against
 the same Atlas and Upstash infrastructure as production, see `docs/milestone-2-spec.md` section 8
 for why that's a deliberate, permanent choice rather than a deferred one.

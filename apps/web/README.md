@@ -1,8 +1,9 @@
 # @playstop/web
 
 Vite + React 19 + TypeScript + Tailwind CSS v4 front end for PlayStop.
-Milestone 1 is a single page that pings the API's `/health` route and shows
-the result, proving the web-to-api wiring works end to end.
+Milestone 3 in progress: shadcn/ui and the design tokens from `DESIGN.md` are in,
+and `src/lib/api.ts` is the client's single network choke point. The booking UI
+itself is not built yet.
 
 ## Run locally
 
@@ -13,7 +14,13 @@ pnpm dev:web                            # http://localhost:5173
 
 ## Env vars
 
-Copy `.env.example` to `.env` to override the default.
+Copy `.env.example` to `.env`. Both are required, and `src/lib/api.ts` throws at the
+first request if either is missing:
+
+- `VITE_API_URL`: where the API lives, for example `http://localhost:3001`.
+- `VITE_VENUE_SLUG`: which venue this deployment books for. PlayStop is multi-tenant
+  in the data model but each deployment serves one venue, so the slug is configuration
+  rather than a route parameter the user picks.
 
 | Var | Default | Notes |
 | --- | --- | --- |

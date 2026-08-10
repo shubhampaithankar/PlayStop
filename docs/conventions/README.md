@@ -12,3 +12,6 @@ here rather than restating them.
 
 Most of these exist because something broke. Where a rule has a cost attached, the file says
 what it was, so the rule can be argued with on the evidence rather than followed on faith.
+
+For why any of this exists, and what is settled versus open, read ../ORIENTATION.md first.
+

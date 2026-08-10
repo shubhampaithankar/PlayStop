@@ -15,6 +15,19 @@ Scope: four screens, one venue, no auth, no accounts, no staff view.
 
 ---
 
+> **Corrections found while executing this spec.** The spec stands except for these:
+>
+> - Step 2 says to run `shadcn add ... form ...`, but section 1 bans `react-hook-form`, which
+>   shadcn's `form` component wraps. `form` was deliberately not added. Use `useActionState`
+>   with `Input` and `Label`, as section 5 describes.
+> - Section 1's dependency list drifted from what was actually installed: the repo uses the
+>   unified `radix-ui` package rather than `@radix-ui/*`, and `date-fns`, `next-themes` and
+>   `tw-animate-css` arrived as shadcn dependencies. `date-fns` is pulled in by
+>   `react-day-picker` and is unused in `src/`; section 1's "no date library" still holds for
+>   code we write.
+> - Tests go in `apps/web/tests/`, not `src/lib/*.test.ts`. The repo convention (tests mirror
+>   `src` in a sibling `tests/` folder) was settled after this spec was written. See
+>   `docs/conventions/testing.md`.
 ## 0. Prerequisites outside `apps/web`
 
 Two one-line changes elsewhere in the repo. Both are verifiable and neither touches API behaviour.
