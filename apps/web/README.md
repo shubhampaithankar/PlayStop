@@ -62,3 +62,21 @@ Regenerating either file reverts those edits, and `pnpm typecheck` will fail wit
 naming the file. That is the intended signal: reapply the one-liner rather than turning the
 compiler option off, which would drop the check across the whole app to accommodate two lines
 of vendor code.
+
+## Bundle sizes
+
+Recorded from `pnpm --filter @playstop/web build`. Budget is 165 kB gzip for the entry chunk
+(`docs/milestone-3-spec.md` section 11).
+
+| Build | Entry JS | CSS | Sentry chunk |
+|---|---|---|---|
+| after milestone 3 step 4 | 104.19 kB gzip | 8.97 kB gzip | not emitted |
+| same, with `VITE_SENTRY_DSN` set | 104.96 kB gzip | 8.97 kB gzip | 48.97 kB gzip, lazy |
+
+Sentry is loaded after mount rather than in the entry chunk. It is roughly 48 kB gzipped,
+close to a third of the whole budget, and section 11's itemised budget does not account for
+it. Loading it eagerly left 12 kB of headroom for the entire booking UI; loading it after
+mount leaves about 60. The trade is that an error thrown during the very first render is not
+captured.
+
+Fonts are 5 woff2 files, about 92 kB total, cached across routes and not render blocking.

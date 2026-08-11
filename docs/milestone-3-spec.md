@@ -25,6 +25,9 @@ Scope: four screens, one venue, no auth, no accounts, no staff view.
 >   `tw-animate-css` arrived as shadcn dependencies. `date-fns` is pulled in by
 >   `react-day-picker` and is unused in `src/`; section 1's "no date library" still holds for
 >   code we write.
+> - Section 11's entry-chunk budget itemises React, router, query, zod, Radix, shadcn utils
+>   and app code, but omits Sentry, which is about 48 kB gzipped on its own. Sentry is
+>   therefore loaded after mount rather than eagerly. See `apps/web/README.md`.
 > - Tests go in `apps/web/tests/`, not `src/lib/*.test.ts`. The repo convention (tests mirror
 >   `src` in a sibling `tests/` folder) was settled after this spec was written. See
 >   `docs/conventions/testing.md`.
