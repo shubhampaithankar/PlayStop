@@ -1,9 +1,9 @@
 # PlayStop
 
 Multi-tenant self-serve booking for a physical gaming lounge. Customers book a station or a time
-slot themselves, no counter staff required. This repository is milestones 1 and 2: a pnpm
-monorepo that builds, deploys, runs CI green, and now has a working booking API behind it.
-The web UI, auth, and accounts arrive in milestone 3.
+slot themselves, no counter staff required. This repository is milestones 1 to 3: a pnpm
+monorepo that builds, deploys, runs CI green, a working booking API, and the player-facing
+booking flow on top of it. Auth and accounts are still out of scope.
 
 ## Structure
 
@@ -124,8 +124,8 @@ needed for those.
 
 ## Not yet built
 
-The booking UI, auth, and accounts land in milestone 3. shadcn/ui is installed and themed;
-TanStack Router and Query arrive with the router shell. TanStack Table was evaluated and
-dropped, because nothing in this UI is tabular. Docker is not planned at all: local development runs against
+Auth, accounts, and a staff view. TanStack Table was evaluated and dropped, because nothing
+in this UI is tabular. A date picker is gone too: `DESIGN.md` made the app tonight-only, so
+`/` redirects straight into `/book` and there is no landing screen. Docker is not planned at all: local development runs against
 the same Atlas and Upstash infrastructure as production, see `docs/milestone-2-spec.md` section 8
 for why that's a deliberate, permanent choice rather than a deferred one.

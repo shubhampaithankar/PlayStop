@@ -203,6 +203,20 @@ and Upstash Redis are live infrastructure, not planned work. The full specificat
 `docs/milestone-2-spec.md`, and it remains the source of truth for the data model, the
 concurrency design, and the test strategy.
 
-**Planned (milestone 3), not yet present on purpose:** shadcn/ui, TanStack Router/Query/Table,
-the booking UI, auth, accounts. None of this is an oversight. Adding any of it before milestone 3
-starts is scope creep.
+**Done (milestone 3):** the player-facing booking flow in `apps/web`. Five screens, console
+to confirmation code, on shadcn/ui with TanStack Router and TanStack Query. `/` redirects to
+`/book`; there is no landing screen and no date picker, because `DESIGN.md` made the app
+tonight-only. Screens 2 to 4 are one route with `start` and `slots` as search params, so the
+back button, a reload, and a pasted link all work off the URL rather than off component state.
+
+The client half of the concurrency design lives in `apps/web/src/lib/attempt.ts`: one record in
+`sessionStorage` holding the idempotency key, the hold, and the frozen request body. The key is
+minted once per attempt and reused on every retry, and the body is frozen on first submit and
+resent verbatim. Both rules exist for one case, a confirm whose response never arrives, where
+regenerating either one turns a retry into a second booking. Verified against the running API:
+the same key replays to the same booking (`Idempotent-Replay: true`), and a fresh key on the
+same range is refused with `SLOT_TAKEN`.
+
+**Still not present on purpose:** TanStack Table, auth, accounts, a staff view, a date picker.
+TanStack Table was evaluated and dropped, since nothing in this UI is tabular. Adding any of
+the rest is scope creep.

@@ -42,7 +42,7 @@ you are about to write a plausible fix that moves correctness into the layer all
   database names, a scoped user each) and Upstash Redis in Singapore. Permanent, spec section 8.
 - **No Vitest, no Jest.** `node --test` on compiled output; tests in `tests/`, built to `dist-tests/`.
 - **No TanStack Table**, no react-hook-form, no client date library, no state manager. Declined in
-  writing (milestone 3 spec section 1): none of the four screens is a table, and the form has three
+  writing (milestone 3 spec section 1): none of the five screens is a table, and the form has two
   fields. Table earns its place when the staff schedule view gets built.
 - **`packages/types` emits a little runtime JavaScript on purpose**: one keyed const object per
   enum-like union, union derived from it. `engine` cannot own them because it already depends on
@@ -112,8 +112,16 @@ Three claims need an experiment rather than a reading, each having failed inspec
 
 ## Current state
 
-Milestones 1 (deploy and CI) and 2 (the booking API) are done and green. Milestone 3, the web client,
-sits at roughly step 3 of the ten in milestone 3 spec section 14: dependencies, the `DESIGN.md`
-tokens, the shadcn set, and `lib/api.ts` with its tests are in. Not yet written: `router.tsx`, `routes/`,
-`lib/query-client.ts`, `lib/grid.ts`, all four screens; `App.tsx` is still the milestone 1 health-check
-placeholder. Next is step 4, the query client and the router shell.
+Milestones 1 (deploy and CI) and 2 (the booking API) are done and green. Milestone 3, the web
+client, is built end to end: all five screens, console through confirmation code, verified against
+the running API with real bookings. The idempotent-retry path is proven, the same key replays to
+the same booking and a fresh key on a taken range is refused.
+
+Left before the milestone closes: the accessibility pass (keyboard through the whole flow, a
+screen reader over the countdown, `prefers-reduced-motion`, axe per screen) and the Cloudflare
+Pages env vars.
+
+Read section 14 of the milestone 3 spec for build order only, not for what to build. Its steps 5
+to 9 describe a UI `DESIGN.md` deleted (a landing screen, a date picker, an availability grid, a
+legend, a Drawer panel). The corrections block at the top of that file lists exactly what
+survived.

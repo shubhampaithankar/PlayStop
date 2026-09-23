@@ -14,10 +14,13 @@ sim by the half hour. The scarcity is physical, so double-booking is a real-worl
 - `packages/types`: declarations plus the enum const objects. Zero dependencies
 - `packages/engine`: everything with runtime behaviour. Zod contracts, inferred types, shared
   constants, and the pure logic (slot grid, availability, pricing)
-- pnpm workspaces, `packageManager` pinned in the root `package.json`
+- pnpm workspaces. Node >= 20 (`engines`), pnpm 9.15.9 (`packageManager`), both pinned in the
+  root `package.json` and matched by CI
 
 ## Commands
 - `pnpm install`, then `pnpm typecheck` / `pnpm lint` / `pnpm build` / `pnpm test`
+- `pnpm lint` is `eslint .` from the root only. One flat config (`eslint.config.js`) and one
+  `.prettierrc` cover every package; no per-package lint script
 - `pnpm build` builds in dependency order. One app plus only its deps:
   `pnpm --filter "@playstop/api..." build`
 - `pnpm dev:web` (5173) / `pnpm dev:api` (3001) / `pnpm clean` (wipes every `dist`, `dist-tests`)
@@ -40,6 +43,12 @@ before changing code in that area; do not infer the rule from surrounding code.
 - **Docs via Context7**: query the `context7` MCP for any library or API, do not trust memory.
 - **Skill before acting**: `systematic-debugging` before a bugfix,
   `verification-before-completion` before claiming done.
+- **Code graph first**: ask the `graphify` MCP before grepping the tree. `query_graph` for
+  "how does X work", `get_neighbors` for callers and callees with line numbers, `god_nodes`
+  for the core abstractions. Two functions share a name across `apps/api` and `apps/web`, so
+  pass the full node id (`apps_api_src_modules_booking_controller_createbooking`) when a bare
+  label comes back ambiguous. Re-extract after a refactor moves or deletes code:
+  `graphify update . --no-cluster`. Output lands in `graphify-out/`, gitignored.
 
 ## Project-specific facts
 - Workspace packages are scoped `@playstop/*`.
@@ -59,6 +68,8 @@ before changing code in that area; do not infer the rule from surrounding code.
 - `scripts/assert-replica-set.mjs`: CI gate, proves Mongo supports transactions before the suite
 
 ## Reference
+These `@` paths do not expand into context on their own. Open the one you need.
+
 - @docs/ORIENTATION.md: read first on a cold start. Why things are as they are, what is
   settled, what has already gone wrong
 - @.claude/rules/lang.md

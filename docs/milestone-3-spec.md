@@ -6,6 +6,9 @@ not redesign the UI. Where it deviates from `DESIGN.md`, section 15 says so and 
 
 Scope: four screens, one venue, no auth, no accounts, no staff view.
 
+**The route table below is dead.** `DESIGN.md` rounds 3 to 5 replaced it; see the corrections
+block under this one for what survives and what the live screens are.
+
 ```
 /                     venue landing, pick a date
 /book                 availability grid across stations
@@ -31,6 +34,34 @@ Scope: four screens, one venue, no auth, no accounts, no staff view.
 > - Tests go in `apps/web/tests/`, not `src/lib/*.test.ts`. The repo convention (tests mirror
 >   `src` in a sibling `tests/` folder) was settled after this spec was written. See
 >   `docs/conventions/testing.md`.
+> - **The UI this spec describes was superseded by `DESIGN.md` rounds 3 to 5.** This file
+>   predates all three and nothing in it was updated. `DESIGN.md` wins wherever they disagree,
+>   and they disagree a lot. Dead here: the `/` landing screen and its date picker (`/` now
+>   redirects to `/book`, and the app is tonight-only), the four-screen scope and the route
+>   comment block above it, the availability grid in section 7, the state legend, the playhead,
+>   the six cell textures, the `Drawer`/`Dialog` hold panel, and 24-hour time. Section 10's
+>   "four screens" and steps 5 to 9 of section 14's build order all describe that dead UI.
+>   What still holds and is still the source of truth: section 3 (`lib/api.ts`), section 4
+>   (query keys, invalidation, polling), section 5 (the hold lifecycle, the attempt record, the
+>   idempotency key, the reload table, and the rule that a hold only ever originates in a
+>   click), section 6 (error handling code by code), section 8 (cold start), section 9
+>   (degraded mode), section 11 (the performance budget), and section 12 (accessibility).
+>   The live screen list is `DESIGN.md`'s: `/book` pick a console, then start time, then
+>   length, then details, then `/booking/:id`. The three middle screens are one route,
+>   `/book/$stationId`, with `start` and `slots` as search params exactly as section 5 requires.
+> - **Party size has no field, and phone is required.** Section 10 says to add a party-size
+>   stepper bounded by `station.capacity`, but `DESIGN.md` round 3 deleted "party size and email
+>   fields" from the flow, and it is both binding and newer. The client sends `partySize: 1` on
+>   every booking. `PARTY_SIZE_EXCEEDS_CAPACITY` is therefore unreachable in practice; its branch
+>   is still handled rather than deleted. In the other direction the contract has phone optional
+>   while `DESIGN.md` screen 4 makes it required, and the stricter side wins: the form is name
+>   plus phone, both required, no email.
+> - **The countdown is a sentence, not a panel.** Section 5's `Progress` bar and its
+>   green/amber/red band are superseded by `DESIGN.md` screen 4: one muted line, mono digits,
+>   red under 60 seconds, no bar. The parts of section 5's countdown that still bind are the
+>   ones about correctness, `remainingMs` derived from `expiresAt`, `setInterval` as a tick
+>   source that never decrements, the `visibilitychange` correction, and `expired` derived
+>   rather than stored.
 ## 0. Prerequisites outside `apps/web`
 
 Two one-line changes elsewhere in the repo. Both are verifiable and neither touches API behaviour.

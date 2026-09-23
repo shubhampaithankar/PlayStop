@@ -13,3 +13,6 @@ build/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+dist-tests/
+.playwright-mcp/
+graphify-out/

@@ -3,7 +3,7 @@
 The scarcity here is physical: a double-booked PS5 means two groups arrive for the same
 console. These rules are not style preferences.
 
-## Redis is UX, Mongo is truth
+## Redis is UX, Mongo is truth — for holds
 
 A Redis hold is an advisory soft reservation with a TTL. It makes the common case pleasant.
 It is **not** proof a cell is free.
@@ -13,10 +13,22 @@ correctness backstop. Every design decision follows from that sentence:
 
 - A Redis outage degrades the experience (more users see a conflict after clicking confirm)
   and never degrades correctness.
-- The system never refuses to book because Redis is down. Refusing would turn a cache outage
-  into a full booking outage.
+- The system never refuses to book because a hold check fails. Refusing would turn a cache
+  outage into a full booking outage.
 - Availability reports `degraded: true` when Redis is unreachable, and held cells then show as
   free. Showing an optimistic `free` and taking a conflict beats showing everything as taken.
+
+This "never blocks" rule scopes to holds only. It does not extend to OTP verification below.
+
+## OTP is a required Redis-backed gate, not UX
+
+Every confirm now requires a verified `verificationId`, read from Redis
+(`otp:{verificationId}`, keyed independently of any hold). Unlike a hold, this check does
+**not** degrade open: if Redis is unreachable, `/otp/request`, `/otp/verify`, and the confirm
+gate all fail rather than let an unverified booking through. This is a deliberate tradeoff,
+not an oversight — a real Redis dependency narrows the "cache outage never blocks a booking"
+guarantee above to holds specifically. A Redis outage now blocks new bookings, in exchange for
+a stronger identity guarantee (every booking traces to a verified email or phone).
 
 ## A booking is all its cells or none
 
