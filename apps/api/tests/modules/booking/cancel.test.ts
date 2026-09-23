@@ -6,6 +6,7 @@ import { bookingResponseSchema, type AvailabilityResponse, type BookingResponse 
 import { collections } from "#libs/mongo/index.js";
 import {
   futureSessionCells,
+  mintVerification,
   seedVenue,
   startTestServer,
   teardown,
@@ -18,10 +19,11 @@ let server: TestServer;
 let venue: TestVenue;
 
 async function confirm(body: unknown): Promise<Response> {
+  const verificationId = await mintVerification(server.baseUrl, venue.slug);
   return fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ verificationId, ...(body as Record<string, unknown>) }),
   });
 }
 

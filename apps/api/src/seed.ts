@@ -24,10 +24,10 @@ interface StationSeed {
 // 7 x PS5, 3 x PS3, 2 x PS2, 3 x racing sim, 15 total. Rates are flat
 // hourly per station (section 11: no peak pricing in this milestone).
 const STATION_KINDS: readonly StationSeed[] = [
-  { slugPrefix: "ps5", label: "PS5", kind: "ps5", count: 7, capacity: 4, hourlyRateMinor: 15_000, minSlots: 1, maxSlots: 8 },
-  { slugPrefix: "ps3", label: "PS3", kind: "ps3", count: 3, capacity: 3, hourlyRateMinor: 10_000, minSlots: 1, maxSlots: 8 },
-  { slugPrefix: "ps2", label: "PS2", kind: "ps2", count: 2, capacity: 2, hourlyRateMinor: 8_000, minSlots: 1, maxSlots: 8 },
-  { slugPrefix: "sim", label: "Sim Rig", kind: "racing-sim", count: 3, capacity: 4, hourlyRateMinor: 20_000, minSlots: 1, maxSlots: 6 },
+  { slugPrefix: "ps5", label: "PS5", kind: "ps5", count: 7, capacity: 4, hourlyRateMinor: 15_000, minSlots: 2, maxSlots: 8 },
+  { slugPrefix: "ps3", label: "PS3", kind: "ps3", count: 3, capacity: 3, hourlyRateMinor: 10_000, minSlots: 2, maxSlots: 8 },
+  { slugPrefix: "ps2", label: "PS2", kind: "ps2", count: 2, capacity: 2, hourlyRateMinor: 8_000, minSlots: 2, maxSlots: 8 },
+  { slugPrefix: "sim", label: "Sim Rig", kind: "racing-sim", count: 3, capacity: 4, hourlyRateMinor: 20_000, minSlots: 2, maxSlots: 6 },
 ];
 
 type StationInput = Omit<StationDoc, "_id" | "venueId" | "createdAt" | "status" | "maintenanceWindows">;
@@ -78,7 +78,7 @@ const MAIN_VENUE: VenueSeed = {
   bufferMinutes: 0,
   currency: "INR",
   leadTimeMinutes: 30,
-  maxAdvanceDays: 14,
+  maxAdvanceDays: 6,
   blackoutDates: [],
 };
 
@@ -93,7 +93,7 @@ const DST_VENUE: VenueSeed = {
   bufferMinutes: 0,
   currency: "USD",
   leadTimeMinutes: 30,
-  maxAdvanceDays: 14,
+  maxAdvanceDays: 6,
   blackoutDates: [],
 };
 

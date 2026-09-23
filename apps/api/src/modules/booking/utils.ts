@@ -17,8 +17,13 @@ export function generateConfirmationCode(): string {
   return code;
 }
 
-export function toBookingResponse(
-  booking: Pick<
+// contactChannel/contact are typed optional here, not as BookingDoc has
+// them (required): Mongo does not enforce the TS shape, and a booking
+// written before the OTP milestone has neither field at all. Every new
+// write always sets both (booking/controller.ts) -- this widening only
+// ever matters for a legacy document read back off the shared Atlas.
+type BookingResponseSource = Omit<
+  Pick<
     BookingDoc,
     | "_id"
     | "venueId"
@@ -32,9 +37,22 @@ export function toBookingResponse(
     | "totalMinor"
     | "currency"
     | "player"
+    | "contactChannel"
+    | "contact"
     | "createdAt"
     | "cancelledAt"
+    | "confirmationSentAt"
+    | "cancellationSentAt"
+    | "nudgeSentAt"
   >,
+  "contactChannel" | "contact"
+> & {
+  readonly contactChannel?: BookingDoc["contactChannel"];
+  readonly contact?: BookingDoc["contact"];
+};
+
+export function toBookingResponse(
+  booking: BookingResponseSource,
   stationName: string,
   stationKind: BookingResponse["stationKind"],
   timezone: string,
@@ -55,8 +73,13 @@ export function toBookingResponse(
     totalMinor: booking.totalMinor,
     currency: booking.currency,
     player: booking.player,
+    contactChannel: booking.contactChannel ?? null,
+    contact: booking.contact ?? null,
     createdAt: booking.createdAt.toISOString(),
     cancelledAt: booking.cancelledAt ? booking.cancelledAt.toISOString() : null,
+    confirmationSentAt: booking.confirmationSentAt ? booking.confirmationSentAt.toISOString() : null,
+    cancellationSentAt: booking.cancellationSentAt ? booking.cancellationSentAt.toISOString() : null,
+    nudgeSentAt: booking.nudgeSentAt ? booking.nudgeSentAt.toISOString() : null,
   };
 }
 

@@ -1,6 +1,12 @@
-// Spec section 9, layer 3, Test C: "Redis is UX, Mongo is truth", proven
-// rather than asserted in a comment. CI only (see concurrency-confirm.test.ts
-// for why).
+// Spec section 9, layer 3, Test C: was "Redis is UX, Mongo is truth" for the
+// whole confirm path. The OTP pivot (2026-09-23 design v3) narrows that:
+// holds still degrade open, but OTP verification is now a required
+// Redis-backed gate that does NOT degrade open (docs/conventions/
+// booking-correctness.md). So the proof this test carries now is the
+// mirror of the old one -- Redis unreachable blocks every confirm with
+// OTP_REQUIRED, writes nothing, while availability (unrelated to OTP)
+// still degrades open and reports degraded:true. CI only (see
+// concurrency-confirm.test.ts for why).
 //
 // REDIS_URL is overridden to a closed port before any module that reads it
 // is imported. env.ts (and everything downstream: redis.ts, app.ts,
@@ -18,7 +24,7 @@ import { test } from "node:test";
 const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
 test(
-  "C: Redis unreachable still yields exactly one booking, and availability reports degraded",
+  "C: Redis unreachable blocks every confirm (OTP_REQUIRED), writes nothing, and availability still reports degraded",
   { skip: !CI_ONLY },
   async () => {
     process.env.REDIS_URL = "redis://127.0.0.1:65535"; // nothing listens here: fast, deterministic connection failure
@@ -40,6 +46,11 @@ test(
       const stationId = venue.stationIds[0]!.toHexString();
       const { businessDate, cellStartMs } = futureSessionCells(venue, 1);
       const startsAt = new Date(cellStartMs[0]!).toISOString();
+      // Redis is unreachable for this whole process (REDIS_URL was pointed
+      // at a closed port before any module import), so there is no real
+      // verificationId to mint -- the OTP gate can never read one back
+      // either way. Any well-formed uuid exercises the same degraded path.
+      const verificationId = randomUUID();
 
       const N = 50;
       const { results, startSpreadMs } = await fireBurst(N, () => ({
@@ -53,6 +64,7 @@ test(
             slotCount: 1,
             partySize: 1,
             player: { name: "Racer" },
+            verificationId,
           }),
         },
       }));
@@ -70,10 +82,13 @@ test(
           return { status: res.status, code: body.error.code };
         }),
       );
-      assert.equal(classified.filter((c) => c.status === 201).length, 1);
+      // The hold check still degrades open (no holdId here anyway), but the
+      // OTP gate does not: every request is blocked before it ever reaches
+      // the Mongo transaction.
+      assert.equal(classified.filter((c) => c.status === 201).length, 0);
       assert.equal(
-        classified.filter((c) => c.status === 409 && c.code === "SLOT_TAKEN").length,
-        N - 1,
+        classified.filter((c) => c.status === 403 && c.code === "OTP_REQUIRED").length,
+        N,
       );
       assert.equal(classified.filter((c) => c.status === 503).length, 0);
 
@@ -81,17 +96,15 @@ test(
         venueId: venue.venueId,
         stationId: venue.stationIds[0]!,
         startsAt: new Date(cellStartMs[0]!),
-        status: "confirmed",
       });
-      assert.equal(bookingCount, 1);
+      assert.equal(bookingCount, 0);
 
       const claimCount = await collections.slotClaims().countDocuments({
         venueId: venue.venueId,
         stationId: venue.stationIds[0]!,
         cellStart: new Date(cellStartMs[0]!),
-        status: "confirmed",
       });
-      assert.equal(claimCount, 1);
+      assert.equal(claimCount, 0);
 
       const availRes = await fetch(
         `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,

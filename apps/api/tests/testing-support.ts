@@ -146,7 +146,9 @@ async function wipeVenueHolds(venueId: ObjectId): Promise<void> {
   } catch {
     return; // Redis down: nothing to wipe, TTL is the backstop anyway.
   }
-  const pattern = `ps:${env.APP_ENV}:${venueId.toHexString()}:hold:*`;
+  // Covers both hold:* and otp:* keys under this venue: same namespace,
+  // same TTL backstop if a test skips cleanup.
+  const pattern = `ps:${env.APP_ENV}:${venueId.toHexString()}:*`;
   let cursor = "0";
   do {
     const [next, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 500);
@@ -204,6 +206,32 @@ export async function fireBurst(
   const results = await Promise.allSettled(tasks);
   const startSpreadMs = Math.max(...starts) - Math.min(...starts);
   return { results, startSpreadMs };
+}
+
+export type OtpContactInput = { channel: "email"; email: string } | { channel: "sms"; phone: string };
+
+function defaultContact(): OtpContactInput {
+  return { channel: "email", email: `test-${randomUUID().slice(0, 8)}@example.com` };
+}
+
+// Request-then-verify against the real OTP routes, exactly what a client
+// does: every confirm() call needs a fresh verified verificationId now that
+// OTP is required on every confirm (spec section 1). Defaults to a fresh
+// email contact per call so distinct confirms never collide on the shared
+// per-contact request cap.
+export async function mintVerification(baseUrl: string, venueSlug: string, contact = defaultContact()): Promise<string> {
+  const req = await fetch(`${baseUrl}/v1/venues/${venueSlug}/otp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contact }),
+  });
+  const reqBody = (await req.json()) as { verificationId: string; devCode?: string };
+  await fetch(`${baseUrl}/v1/venues/${venueSlug}/otp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verificationId: reqBody.verificationId, code: reqBody.devCode }),
+  });
+  return reqBody.verificationId;
 }
 
 export interface TestServer {

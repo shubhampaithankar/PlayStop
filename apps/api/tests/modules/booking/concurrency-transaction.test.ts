@@ -28,7 +28,7 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    const { fireBurst, futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
       "#testing-support.js"
     );
 
@@ -41,6 +41,15 @@ test(
       const REQUESTS = 20;
       const SLOT_COUNT = 3;
       const { cellStartMs } = futureSessionCells(venue, REQUESTS + SLOT_COUNT - 1);
+      // One verification PER racer, pre-minted before the burst (see
+      // concurrency-confirm.test.ts Test A for why): the winner's
+      // post-commit deleteOtpChallenge deletes a shared id, and a loser
+      // whose read lands after that DEL would get 410 OTP_EXPIRED instead
+      // of 409 SLOT_TAKEN, which this test asserts every loser must be --
+      // and could silently drop a legitimate disjoint-cell winner too.
+      const verificationIds = await Promise.all(
+        Array.from({ length: REQUESTS }, () => mintVerification(server!.baseUrl, venue!.slug)),
+      );
 
       const { results, startSpreadMs } = await fireBurst(REQUESTS, (i) => ({
         url: `${server!.baseUrl}/v1/venues/${venue!.slug}/bookings`,
@@ -53,6 +62,7 @@ test(
             slotCount: SLOT_COUNT,
             partySize: 1,
             player: { name: `Racer ${i}` },
+            verificationId: verificationIds[i],
           }),
         },
       }));

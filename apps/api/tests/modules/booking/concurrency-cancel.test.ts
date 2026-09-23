@@ -20,7 +20,7 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    const { fireBurst, futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
       "#testing-support.js"
     );
 
@@ -35,6 +35,7 @@ test(
       venue = await seedVenue();
       const stationId = venue.stationIds[0]!.toHexString();
       const { cellStartMs } = futureSessionCells(venue, 1);
+      const verificationId = await mintVerification(server.baseUrl, venue.slug);
 
       const booked = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
         method: "POST",
@@ -45,6 +46,7 @@ test(
           slotCount: 1,
           partySize: 1,
           player: { name: "Racer" },
+          verificationId,
         }),
       });
       assert.equal(booked.status, 201);

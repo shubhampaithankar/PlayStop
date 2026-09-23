@@ -45,7 +45,6 @@ function assertWindowBounds(result: {
   }
 }
 
-// case 1
 test("normal session yields 16 cells, first 10:00, last ends exactly at 18:00", () => {
   const result = generateSlotGrid(baseVenue(), "2026-08-10");
   assert.equal(result.kind, "open");
@@ -56,7 +55,6 @@ test("normal session yields 16 cells, first 10:00, last ends exactly at 18:00", 
   assertWindowBounds(result);
 });
 
-// case 2
 test("trailing partial cell is dropped", () => {
   const venue = baseVenue({ openingHours: allWeek("10:00", "10:50") });
   const result = generateSlotGrid(venue, "2026-08-10");
@@ -65,13 +63,11 @@ test("trailing partial cell is dropped", () => {
   assert.equal(result.cells.length, 1);
 });
 
-// case 3
 test("gridMinutes that does not divide 60 is rejected", () => {
   const venue = baseVenue({ gridMinutes: 40 });
   assert.throws(() => generateSlotGrid(venue, "2026-08-10"), InvalidGridMinutesError);
 });
 
-// case 4
 test("spring forward interior drops exactly 2 cells and skips the 02: hour", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -89,7 +85,6 @@ test("spring forward interior drops exactly 2 cells and skips the 02: hour", () 
   }
 });
 
-// case 5
 test("spring forward opening boundary advances to 03:30", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -101,7 +96,6 @@ test("spring forward opening boundary advances to 03:30", () => {
   assert.match(result.cells[0]!.localLabel, /^2026-03-08 03:30/);
 });
 
-// case 6
 test("fall back interior yields 14 cells with both 01:00 and both 01:30 occurrences", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -121,7 +115,6 @@ test("fall back interior yields 14 cells with both 01:00 and both 01:30 occurren
   assert.match(at0100[1]!.localLabel, /EST/);
 });
 
-// case 7
 test("fall back closing boundary takes the later (EST) candidate", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -135,7 +128,6 @@ test("fall back closing boundary takes the later (EST) candidate", () => {
   assert.equal(last.cellEndMs, result.windowEndMs);
 });
 
-// case 8
 test("southern hemisphere: Sydney spring forward (October) interior drops cells", () => {
   const venue = baseVenue({
     timezone: "Australia/Sydney",
@@ -158,7 +150,6 @@ test("southern hemisphere: Sydney fall back (April) interior adds cells", () => 
   assert.equal(result.cells.length, 14);
 });
 
-// case 9
 test("half-hour offset zone (Asia/Kolkata) lands cells on UTC :00 and :30", () => {
   const result = generateSlotGrid(baseVenue(), "2026-08-10");
   assert.equal(result.kind, "open");
@@ -170,7 +161,6 @@ test("half-hour offset zone (Asia/Kolkata) lands cells on UTC :00 and :30", () =
   }
 });
 
-// case 10
 test("zone with historical offset changes but no current DST (Asia/Shanghai)", () => {
   const venue = baseVenue({ timezone: "Asia/Shanghai", openingHours: allWeek("10:00", "18:00") });
   const result = generateSlotGrid(venue, "2026-08-10");
@@ -180,7 +170,6 @@ test("zone with historical offset changes but no current DST (Asia/Shanghai)", (
   assert.equal(result.windowEndMs - result.windowStartMs, 8 * 3_600_000);
 });
 
-// case 11
 test("weekday closed gives weekday_closed with zero cells and populated window", () => {
   const venue = baseVenue({ openingHours: { ...allWeek("10:00", "18:00"), "0": null } });
   const result = generateSlotGrid(venue, "2026-08-09"); // a Sunday
@@ -190,7 +179,6 @@ test("weekday closed gives weekday_closed with zero cells and populated window",
   assert.ok(result.windowEndMs > result.windowStartMs);
 });
 
-// case 12
 test("blackout date gives blackout with zero cells", () => {
   const venue = baseVenue({ blackoutDates: ["2026-08-10"] });
   const result = generateSlotGrid(venue, "2026-08-10");
@@ -199,7 +187,6 @@ test("blackout date gives blackout with zero cells", () => {
   assert.equal(result.reason, "blackout");
 });
 
-// case 13
 test("weekday index mapping: only the configured day opens, Sunday maps to '0'", () => {
   const venue = baseVenue({
     openingHours: { ...allWeek("10:00", "18:00"), "1": null, "2": null, "3": null, "4": null, "5": null, "6": null },
@@ -217,7 +204,6 @@ test("weekday index mapping: only the configured day opens, Sunday maps to '0'",
   }
 });
 
-// case 20
 test("a session that resolves to more than 24 hours throws InvalidOpeningHoursError", () => {
   // open == close ("14:00") rolls to next day (equal counts as close <= open),
   // and 2026-10-31 -> 2026-11-01 crosses the fall-back transition, so the
@@ -229,7 +215,6 @@ test("a session that resolves to more than 24 hours throws InvalidOpeningHoursEr
   assert.throws(() => generateSlotGrid(venue, "2026-10-31"), InvalidOpeningHoursError);
 });
 
-// case 22
 test("midnight crossing, basic: 14:00-02:00 gives 24 cells spanning into the next day", () => {
   const venue = baseVenue({ openingHours: allWeek("14:00", "02:00") });
   const result = generateSlotGrid(venue, "2026-08-07");
@@ -243,7 +228,6 @@ test("midnight crossing, basic: 14:00-02:00 gives 24 cells spanning into the nex
   assertWindowBounds(result);
 });
 
-// case 23
 test("midnight crossing, cell ownership: sessions for D and D+1 are disjoint", () => {
   const venue = baseVenue({ openingHours: allWeek("14:00", "02:00") });
   const friday = generateSlotGrid(venue, "2026-08-07");
@@ -264,7 +248,6 @@ test("midnight crossing, cell ownership: sessions for D and D+1 are disjoint", (
   assert.ok(!saturdayStarts.has(fridayTailInstant));
 });
 
-// case 24
 test("midnight crossing, weekday lookup: Friday session emits Saturday cells even though Saturday is closed", () => {
   const venue = baseVenue({
     openingHours: { ...allWeek("14:00", "02:00"), "6": null }, // Saturday closed
@@ -281,7 +264,6 @@ test("midnight crossing, weekday lookup: Friday session emits Saturday cells eve
   }
 });
 
-// case 25
 test("midnight crossing, blackout removes the whole session including the tail", () => {
   const venue = baseVenue({
     openingHours: allWeek("14:00", "02:00"),
@@ -294,7 +276,6 @@ test("midnight crossing, blackout removes the whole session including the tail",
   }
 });
 
-// case 26
 // SPEC DISCREPANCY: the numbered case claims the transition night yields
 // "two fewer cells than the neighboring nights". That contradicts the
 // spec's own prose immediately above the edge-case list ("closeInstant
@@ -325,7 +306,6 @@ test("midnight crossing over spring forward, closing exactly at the transition",
   assert.equal(transitionNight.cells.length, neighborAfter.cells.length);
 });
 
-// case 27
 test("midnight crossing over spring forward, closing after the transition is 1 hour shorter", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -342,7 +322,6 @@ test("midnight crossing over spring forward, closing after the transition is 1 h
   }
 });
 
-// case 28
 test("midnight crossing over fall back yields 2 more cells with duplicated 01:00/01:30", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -361,7 +340,6 @@ test("midnight crossing over fall back yields 2 more cells with duplicated 01:00
   assert.notEqual(at0100[0]!.localLabel, at0100[1]!.localLabel);
 });
 
-// case 29
 test("midnight crossing over fall back, closing inside the ambiguous hour takes both passes of 01:00", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -376,7 +354,6 @@ test("midnight crossing over fall back, closing inside the ambiguous hour takes 
   assert.match(last.localLabel, /01:00 EST$/);
 });
 
-// case 30
 test("calendar roll versus elapsed roll: the midnight roll preserves the local closing hour", () => {
   const venue = baseVenue({
     timezone: "America/New_York",
@@ -403,7 +380,6 @@ test("calendar roll versus elapsed roll: the midnight roll preserves the local c
   assert.notEqual(result.windowEndMs, elapsedWrong);
 });
 
-// case 31
 test("quarter-hour offset zone (Asia/Kathmandu) lands cells on UTC :15 and :45", () => {
   const venue = baseVenue({ timezone: "Asia/Kathmandu", openingHours: allWeek("14:00", "02:00") });
   const result = generateSlotGrid(venue, "2026-08-07");
@@ -416,7 +392,6 @@ test("quarter-hour offset zone (Asia/Kathmandu) lands cells on UTC :15 and :45",
   }
 });
 
-// case 32
 test("window boundaries hold across a spread of scenarios", () => {
   const scenarios: [VenueSchedule, string][] = [
     [baseVenue(), "2026-08-10"],
@@ -436,7 +411,6 @@ test("window boundaries hold across a spread of scenarios", () => {
   }
 });
 
-// case 33
 test("southern hemisphere midnight crossing over both October and April transitions", () => {
   const venue = baseVenue({
     timezone: "Australia/Sydney",

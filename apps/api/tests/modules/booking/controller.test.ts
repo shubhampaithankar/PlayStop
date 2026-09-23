@@ -1,3 +1,4 @@
+import "../../high-rate-limit.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -6,6 +7,7 @@ import { collections } from "#libs/mongo/index.js";
 import { hashRequest } from "#modules/booking/idempotency.js";
 import {
   futureSessionCells,
+  mintVerification,
   seedVenue,
   startTestServer,
   teardown,
@@ -21,16 +23,20 @@ function player(): { name: string } {
   return { name: "Test Player" };
 }
 
+// Mints a fresh verified verificationId per call and merges it into body: a
+// caller passing its own verificationId (to test the gate itself) still
+// wins, since it spreads after.
 async function confirm(
   body: unknown,
   idempotencyKey: string | null = randomUUID(),
 ): Promise<Response> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (idempotencyKey !== null) headers["Idempotency-Key"] = idempotencyKey;
+  const verificationId = await mintVerification(server.baseUrl, venue.slug);
   return fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
     method: "POST",
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify({ verificationId, ...(body as Record<string, unknown>) }),
   });
 }
 

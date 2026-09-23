@@ -55,7 +55,6 @@ function baseInput(overrides: Partial<AvailabilityInput> = {}): AvailabilityInpu
   };
 }
 
-// case 14
 test("lead time: cells before now + leadTimeMinutes are past, the one right after is not", () => {
   const venue = { ...baseVenue(), leadTimeMinutes: 60 };
   // Session opens 10:00 IST = 04:30Z. Pick "now" mid-session, at the instant
@@ -71,7 +70,6 @@ test("lead time: cells before now + leadTimeMinutes are past, the one right afte
   assert.notEqual(byStart.get(atOrAfterCutoff)?.state, "past");
 });
 
-// case 15
 test("max advance: a date beyond maxAdvanceDays returns every cell as too_far_ahead", () => {
   const venue = { ...baseVenue(), leadTimeMinutes: 0, maxAdvanceDays: 1 };
   const nowMs = Date.parse("2026-08-01T00:00:00.000Z");
@@ -83,7 +81,6 @@ test("max advance: a date beyond maxAdvanceDays returns every cell as too_far_ah
   }
 });
 
-// case 16
 test("maintenance window marks overlapping cells only, half-open boundaries excluded", () => {
   const venue = baseVenue();
   // Session opens 10:00 IST = 04:30Z. Cells: 04:30-05:00, 05:00-05:30, 05:30-06:00, ...
@@ -101,7 +98,6 @@ test("maintenance window marks overlapping cells only, half-open boundaries excl
   assert.notEqual(byStart.get(cellEnd)?.state, "maintenance");
 });
 
-// case 17
 test("maintenance window spanning a DST transition covers the correct number of real cells", () => {
   const venue: VenueSchedule & { leadTimeMinutes: number; maxAdvanceDays: number } = {
     timezone: "America/New_York",
@@ -128,7 +124,6 @@ test("maintenance window spanning a DST transition covers the correct number of 
   }
 });
 
-// case 18
 test("state precedence: a cell both booked and held is reported as booked", () => {
   const cellStart = Date.parse("2026-08-10T04:30:00.000Z"); // first cell
   const result = computeAvailability(
@@ -141,14 +136,12 @@ test("state precedence: a cell both booked and held is reported as booked", () =
   assert.equal(first?.state, "booked");
 });
 
-// case 19
 test("empty station list gives empty cells and closed === null", () => {
   const result = computeAvailability(baseInput({ stations: [] }));
   assert.equal(result.closed, null);
   assert.deepEqual(result.cells, []);
 });
 
-// case 21
 test("determinism: identical input returns deeply equal output", () => {
   const input = baseInput({ nowMs: Date.parse("2026-08-10T06:00:00.000Z") });
   const first = computeAvailability(input);

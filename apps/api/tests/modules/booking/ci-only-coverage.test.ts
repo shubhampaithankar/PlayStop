@@ -13,8 +13,8 @@ import { DateTime } from "luxon";
 
 const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
-function confirmBody(stationId: string, startsAt: string, slotCount: number): unknown {
-  return { stationId, startsAt, slotCount, partySize: 1, player: { name: "Racer" } };
+function confirmBody(stationId: string, startsAt: string, slotCount: number, verificationId: string): unknown {
+  return { stationId, startsAt, slotCount, partySize: 1, player: { name: "Racer" }, verificationId };
 }
 
 // Test N: a slotCount one above the station's maxSlots is rejected, run
@@ -25,7 +25,7 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { futureSessionCells, seedVenue, startTestServer, teardown, wipeVenue } = await import(
+    const { futureSessionCells, mintVerification, seedVenue, startTestServer, teardown, wipeVenue } = await import(
       "#testing-support.js"
     );
 
@@ -39,12 +39,13 @@ test(
           venue = await seedVenue({ maxSlots });
           const stationId = venue.stationIds[0]!.toHexString();
           const { cellStartMs } = futureSessionCells(venue, maxSlots + 1);
+          const verificationId = await mintVerification(server.baseUrl, venue.slug);
 
           const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
             body: JSON.stringify(
-              confirmBody(stationId, new Date(cellStartMs[0]!).toISOString(), maxSlots + 1),
+              confirmBody(stationId, new Date(cellStartMs[0]!).toISOString(), maxSlots + 1, verificationId),
             ),
           });
           assert.equal(res.status, 422, `maxSlots ${maxSlots}: expected 422`);
@@ -82,7 +83,7 @@ test(
   "O: a midnight-crossing booking shows up on its business date only",
   { skip: !CI_ONLY },
   async () => {
-    const { futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    const { futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
       "#testing-support.js"
     );
 
@@ -96,11 +97,12 @@ test(
       const { businessDate, cellStartMs } = futureSessionCells(venue, 24); // the whole 14:00-02:00 session
       const lateNightStart = cellStartMs[22]!; // local 01:00, the day after businessDate
       const lateNightCells = [cellStartMs[22]!, cellStartMs[23]!];
+      const verificationId = await mintVerification(server.baseUrl, venue.slug);
 
       const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-        body: JSON.stringify(confirmBody(stationId, new Date(lateNightStart).toISOString(), 2)),
+        body: JSON.stringify(confirmBody(stationId, new Date(lateNightStart).toISOString(), 2, verificationId)),
       });
       assert.equal(res.status, 201);
 
@@ -146,7 +148,7 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    const { futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
       "#testing-support.js"
     );
 
@@ -158,11 +160,12 @@ test(
       const stationId = venue.stationIds[0]!.toHexString();
       const { cellStartMs } = futureSessionCells(venue, 24);
       const thirdFromLast = cellStartMs[21]!; // cells 21,22,23 exist; a 4th would not
+      const verificationId = await mintVerification(server.baseUrl, venue.slug);
 
       const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": randomUUID() },
-        body: JSON.stringify(confirmBody(stationId, new Date(thirdFromLast).toISOString(), 4)),
+        body: JSON.stringify(confirmBody(stationId, new Date(thirdFromLast).toISOString(), 4, verificationId)),
       });
       assert.equal(res.status, 422);
       const body = (await res.json()) as { error: { code: string } };

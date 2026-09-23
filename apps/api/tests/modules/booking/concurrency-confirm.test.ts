@@ -46,7 +46,7 @@ async function classify(result: PromiseSettledResult<Response>): Promise<Classif
 // round: a single round can pass on timing luck.
 test("A: N concurrent confirms yield exactly one booking", { skip: !CI_ONLY }, async () => {
   const { collections } = await import("#libs/mongo/index.js");
-  const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+  const { fireBurst, futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
     "#testing-support.js"
   );
 
@@ -65,8 +65,19 @@ test("A: N concurrent confirms yield exactly one booking", { skip: !CI_ONLY }, a
     for (let round = 0; round < ROUNDS; round++) {
       const { cellStartMs } = futureSessionCells(venue, 1);
       const startsAt = new Date(cellStartMs[0]!).toISOString();
+      // One verification PER racer, pre-minted before the burst: the
+      // winner's post-commit deleteOtpChallenge (booking/controller.ts)
+      // deletes its verificationId, so 50 racers sharing one id would let
+      // a DEL race land mid-burst and turn a loser's legitimate SLOT_TAKEN
+      // into an OTP_EXPIRED instead, flaking the exact-N-1 assertion
+      // below. Minted with Promise.all (each call defaults to a fresh
+      // unique email contact) so pre-minting itself doesn't serialize the
+      // burst.
+      const verificationIds = await Promise.all(
+        Array.from({ length: N }, () => mintVerification(server!.baseUrl, venue!.slug)),
+      );
 
-      const { results, startSpreadMs } = await fireBurst(N, () => ({
+      const { results, startSpreadMs } = await fireBurst(N, (i) => ({
         url: `${server!.baseUrl}/v1/venues/${venue!.slug}/bookings`,
         init: {
           method: "POST",
@@ -77,6 +88,7 @@ test("A: N concurrent confirms yield exactly one booking", { skip: !CI_ONLY }, a
             slotCount: 1,
             partySize: 1,
             player: { name: "Racer" },
+            verificationId: verificationIds[i],
           }),
         },
       }));
@@ -137,7 +149,7 @@ test(
   { skip: !CI_ONLY },
   async () => {
     const { collections } = await import("#libs/mongo/index.js");
-    const { fireBurst, futureSessionCells, seedVenue, startTestServer, teardown } = await import(
+    const { fireBurst, futureSessionCells, mintVerification, seedVenue, startTestServer, teardown } = await import(
       "#testing-support.js"
     );
 
@@ -150,6 +162,7 @@ test(
       const { cellStartMs } = futureSessionCells(venue, 1);
       const startsAt = new Date(cellStartMs[0]!).toISOString();
       const key = randomUUID();
+      const verificationId = await mintVerification(server.baseUrl, venue.slug);
 
       const { results, startSpreadMs } = await fireBurst(20, () => ({
         url: `${server!.baseUrl}/v1/venues/${venue!.slug}/bookings`,
@@ -162,6 +175,7 @@ test(
             slotCount: 1,
             partySize: 1,
             player: { name: "Racer" },
+            verificationId,
           }),
         },
       }));

@@ -98,11 +98,21 @@ export function resolveRange(
   }
 
   const leadCutoffMs = nowMs + schedule.leadTimeMinutes * 60_000;
-  const maxAdvanceCutoffMs = nowMs + schedule.maxAdvanceDays * 86_400_000;
   for (const ms of cells.playMs) {
-    if (ms < leadCutoffMs || ms > maxAdvanceCutoffMs) {
-      throw new DomainError(ERROR_CODES.SLOT_OUT_OF_WINDOW, 422, "That time is outside the bookable window.");
+    if (ms < leadCutoffMs) {
+      throw new DomainError(ERROR_CODES.SLOT_TOO_SOON, 422, "That time is too soon to book.");
     }
+  }
+
+  // Same day-diff pattern as availability (availability/controller.ts), so
+  // a hold or confirm agrees with what the availability grid already showed
+  // as bookable. The -1 tolerance keeps a post-midnight tail cell of
+  // yesterday's session reachable, same as availability's gate.
+  const localToday = DateTime.fromMillis(nowMs, { zone: schedule.timezone }).startOf("day");
+  const cellLocalDate = DateTime.fromISO(businessDate, { zone: schedule.timezone }).startOf("day");
+  const daysFromToday = cellLocalDate.diff(localToday, "days").days;
+  if (daysFromToday < -1 || daysFromToday > schedule.maxAdvanceDays) {
+    throw new DomainError(ERROR_CODES.DATE_OUT_OF_RANGE, 422, "That date is outside the bookable range.");
   }
 
   const stride = schedule.gridMinutes * 60_000;

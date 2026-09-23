@@ -1,7 +1,8 @@
 import { MongoOperationTimeoutError, MongoServerError, type ObjectId } from "mongodb";
-import { ERROR_CODES, type BookingResponse } from "@playstop/engine";
+import { ERROR_CODES, type BookingResponse, type OtpChannel } from "@playstop/engine";
 import { collections, mongoClient, type BookingDoc, type SlotClaimDoc, type StationDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
+import { notifyFor } from "#libs/notify/index.js";
 
 export interface BuiltConfirmDocs {
   readonly bookingDoc: BookingDoc;
@@ -64,6 +65,68 @@ export async function runConfirmTransaction(
   } finally {
     await session.endSession();
   }
+}
+
+// Fire-and-forget messaging trigger, same spirit as releaseHold at the
+// confirm/cancel callsites: never blocks or fails the booking. The
+// check-and-set on the *SentAt stamp is the dedupe guard -- a retry that
+// reaches this point twice (e.g. the driver's own transient-error retry
+// inside runConfirmTransaction) sends at most once.
+async function notifyOnce(
+  bookingId: ObjectId,
+  venueId: ObjectId,
+  stampField: "confirmationSentAt" | "cancellationSentAt",
+  // Nullable: a booking written before the OTP milestone has neither field
+  // at all, and BookingDoc's required typing doesn't stop Mongo handing one
+  // back at runtime. Skip the send rather than call notifyFor(undefined).
+  contactChannel: OtpChannel | null | undefined,
+  contact: string | null | undefined,
+  subject: string,
+  text: string,
+): Promise<void> {
+  if (!contactChannel || !contact) return;
+  const result = await collections
+    .bookings()
+    .updateOne({ _id: bookingId, venueId, [stampField]: null }, { $set: { [stampField]: new Date() } });
+  if (result.matchedCount === 1) {
+    await notifyFor(contactChannel).send({ to: contact, subject, text });
+  }
+}
+
+export function notifyConfirmation(
+  bookingId: ObjectId,
+  venueId: ObjectId,
+  contactChannel: OtpChannel | null | undefined,
+  contact: string | null | undefined,
+  confirmationCode: string,
+): Promise<void> {
+  return notifyOnce(
+    bookingId,
+    venueId,
+    "confirmationSentAt",
+    contactChannel,
+    contact,
+    "Your PlayStop booking is confirmed",
+    `Booking confirmed. Your confirmation code is ${confirmationCode}.`,
+  );
+}
+
+export function notifyCancellation(
+  bookingId: ObjectId,
+  venueId: ObjectId,
+  contactChannel: OtpChannel | null | undefined,
+  contact: string | null | undefined,
+  confirmationCode: string,
+): Promise<void> {
+  return notifyOnce(
+    bookingId,
+    venueId,
+    "cancellationSentAt",
+    contactChannel,
+    contact,
+    "Your PlayStop booking is cancelled",
+    `Booking ${confirmationCode} has been cancelled.`,
+  );
 }
 
 // No venueId/status filter: the caller already trusts booking ownership by

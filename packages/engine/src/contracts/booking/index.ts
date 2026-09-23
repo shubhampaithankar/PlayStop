@@ -33,6 +33,7 @@ export const createBookingRequestSchema = z.object({
   slotCount: z.number().int().min(SLOT_COUNT_MIN).max(SLOT_COUNT_MAX), // station bound minSlots..maxSlots checked server-side
   partySize: z.number().int().min(PARTY_SIZE_MIN).max(PARTY_SIZE_MAX),
   holdId: z.string().uuid().optional(), // absence is legal, see section 4
+  verificationId: z.string().uuid(), // required: OTP verification gates every confirm
   player: playerSchema,
 });
 
@@ -54,8 +55,17 @@ export const bookingResponseSchema = z.object({
   totalMinor: z.number().int(),
   currency: z.string(),
   player: playerSchema,
+  // Nullable, not required: bookings written before the OTP milestone
+  // predate these fields entirely, so a legacy document has neither. New
+  // bookings always set both (booking/controller.ts); null here only ever
+  // reflects that pre-existing gap, never a new write.
+  contactChannel: z.enum(["email", "sms"]).nullable(),
+  contact: z.string().nullable(),
   createdAt: isoInstantSchema,
   cancelledAt: isoInstantSchema.nullable(),
+  confirmationSentAt: isoInstantSchema.nullable(),
+  cancellationSentAt: isoInstantSchema.nullable(),
+  nudgeSentAt: isoInstantSchema.nullable(),
 });
 
 export type BookingResponse = z.infer<typeof bookingResponseSchema>;

@@ -26,6 +26,54 @@ end
 return deleted
 `;
 
+// One round trip, atomic: a concurrent double-verify must not both read
+// "not yet attempted" (spec section 3). ARGV[1] is codeHash, computed by
+// the caller via node:crypto -- Lua never sees the raw code. Attempt cap
+// (5) is a fixed business rule, not a runtime value, so it is inlined
+// rather than threaded through ARGV.
+const OTP_VERIFY_LUA = `
+local key = KEYS[1]
+local codeHash = ARGV[1]
+if redis.call("EXISTS", key) == 0 then
+  return "EXPIRED"
+end
+local attempts = tonumber(redis.call("HGET", key, "attempts")) or 0
+if attempts >= 5 then
+  return "TOOMANY"
+end
+redis.call("HINCRBY", key, "attempts", 1)
+if redis.call("HGET", key, "codeHash") == codeHash then
+  redis.call("HSET", key, "verified", 1)
+  return "OK"
+end
+return "INVALID"
+`;
+
+// One round trip, atomic: INCR then PEXPIRE-only-on-first-increment used to
+// be two calls, so a crash (or a Redis-down tryRedis catch) between them
+// left a request-cap key with no TTL, never expiring. Same shape as the
+// two Lua scripts above.
+const OTP_REQUEST_INCR_LUA = `
+local key = KEYS[1]
+local ttlMs = ARGV[1]
+local count = redis.call("INCR", key)
+if count == 1 then
+  redis.call("PEXPIRE", key, ttlMs)
+end
+return count
+`;
+
+// One round trip, atomic: HSET then PEXPIRE used to be two calls, so a
+// crash between them left an OTP challenge hash with no TTL, never
+// expiring (and never reusable by a fresh request, since HSET only
+// overwrites fields, not the hash's TTL).
+const OTP_CHALLENGE_WRITE_LUA = `
+local key = KEYS[1]
+redis.call("HSET", key, "codeHash", ARGV[1], "channel", ARGV[2], "contact", ARGV[3], "attempts", "0", "verified", "0", "requests", ARGV[4])
+redis.call("PEXPIRE", key, ARGV[5])
+return 1
+`;
+
 declare module "ioredis" {
   // Context must match RedisCommander's own type parameter name for
   // declaration merging, even though these signatures don't use it.
@@ -33,6 +81,9 @@ declare module "ioredis" {
   interface RedisCommander<Context> {
     holdAcquire(...args: (string | number)[]): Promise<number>;
     holdRelease(...args: (string | number)[]): Promise<number>;
+    otpVerify(...args: (string | number)[]): Promise<"OK" | "INVALID" | "EXPIRED" | "TOOMANY">;
+    otpRequestIncr(...args: (string | number)[]): Promise<number>;
+    otpChallengeWrite(...args: (string | number)[]): Promise<number>;
   }
 }
 
@@ -47,6 +98,9 @@ export const redis = new Redis(env.REDIS_URL, {
 
 redis.defineCommand("holdAcquire", { lua: HOLD_ACQUIRE_LUA });
 redis.defineCommand("holdRelease", { lua: HOLD_RELEASE_LUA });
+redis.defineCommand("otpVerify", { lua: OTP_VERIFY_LUA });
+redis.defineCommand("otpRequestIncr", { lua: OTP_REQUEST_INCR_LUA });
+redis.defineCommand("otpChallengeWrite", { lua: OTP_CHALLENGE_WRITE_LUA });
 
 // ioredis catches its own unhandled error events and logs them rather than
 // letting Node throw, verified directly against a refused connection. But

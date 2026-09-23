@@ -73,9 +73,14 @@ export interface BookingDoc {
   totalMinor: number;
   currency: string;
   player: BookingPlayer;
+  contactChannel: "email" | "sms"; // authoritative from the OTP verification record, never client-submitted
+  contact: string;
   idempotencyKey: string;
   createdAt: Date;
   cancelledAt: Date | null;
+  confirmationSentAt: Date | null;
+  cancellationSentAt: Date | null;
+  nudgeSentAt: Date | null; // design-only for now (spec section 3); always null until the nudge sweep is built
 }
 
 export type ClaimKind = "play" | "buffer";

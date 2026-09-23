@@ -7,3 +7,4 @@ export * from "./venue/index.js";
 export * from "./availability/index.js";
 export * from "./hold/index.js";
 export * from "./booking/index.js";
+export * from "./otp/index.js";

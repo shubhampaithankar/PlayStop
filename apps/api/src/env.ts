@@ -34,6 +34,20 @@ const envSchema = z.object({
   // local dev and CI need zero extra setup and make zero network calls.
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+
+  // Not z.coerce.boolean(): that coerces any non-empty string, including
+  // the literal "false", to true. MOCK_OTP=true shows the code in the
+  // response; defaults to false (fail closed) so a deployment that forgets
+  // to set this var never leaks devCode -- .env.example and CI both set it
+  // to true explicitly for local dev and the test suite.
+  MOCK_OTP: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+
+  // Display "from" on logged messages (libs/notify). Optional: no real
+  // provider is wired, so this is cosmetic for the log line only.
+  MESSAGE_FROM: z.string().min(1).optional(),
 });
 
 function loadEnv() {
