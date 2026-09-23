@@ -9,11 +9,15 @@ import {
   availabilityResponseSchema,
   createHoldResponseSchema,
   bookingResponseSchema,
+  otpRequestResponseSchema,
+  otpVerifyResponseSchema,
   type ErrorCode,
   type AvailabilityQuery,
   type CreateHoldRequest,
   type ReleaseHoldRequest,
   type CreateBookingRequest,
+  type OtpRequest,
+  type OtpVerify,
 } from "@playstop/engine";
 
 /** The server answered with a structured error. `code` is the closed union from packages/engine. */
@@ -155,8 +159,33 @@ export const createHold = (b: CreateHoldRequest) =>
 export const releaseHold = (b: ReleaseHoldRequest) =>
   request({ method: "POST", path: "/holds/release", body: b, schema: z.undefined() });
 
+/** Best-effort hold release on tab close or reload (milestone-3-spec.md
+ *  section 5, "Tab close and reload"). Fire and forget: keepalive lets the
+ *  request outlive the unloading page, and there is nothing to await -- the
+ *  caller has already left. Not through request(): keepalive needs a raw
+ *  fetch, and a pagehide handler must never await a response. */
+export function releaseHoldBeacon(b: ReleaseHoldRequest): void {
+  try {
+    const url = new URL(`${baseUrl()}/holds/release`);
+    void fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(b),
+      keepalive: true,
+    });
+  } catch {
+    // best effort; the TTL is the real backstop (booking-correctness.md)
+  }
+}
+
 export const createBooking = (b: CreateBookingRequest, idempotencyKey: string) =>
   request({ method: "POST", path: "/bookings", body: b, idempotencyKey, schema: bookingResponseSchema });
+
+export const requestOtp = (b: OtpRequest) =>
+  request({ method: "POST", path: "/otp/request", body: b, schema: otpRequestResponseSchema });
+
+export const verifyOtp = (b: OtpVerify) =>
+  request({ method: "POST", path: "/otp/verify", body: b, schema: otpVerifyResponseSchema });
 
 export const getBooking = (id: string, code: string) =>
   request({ method: "GET", path: `/bookings/${id}`, query: { code }, schema: bookingResponseSchema });
@@ -168,6 +197,27 @@ export const cancelBooking = (id: string, code: string) =>
     body: { confirmationCode: code },
     schema: bookingResponseSchema,
   });
+
+/** Maps a zod `.flatten()`-shaped `details` value onto the player form's two
+ *  fields, per section 6's VALIDATION_FAILED row: "Map fieldErrors.player.name
+ *  and friends onto the matching inputs; anything in formErrors becomes a
+ *  panel-level message." Handles both a nested `fieldErrors.player.name` and
+ *  a dotted `fieldErrors["player.name"]`, since flatten()'s exact shape for a
+ *  nested object varies by how the schema failed. Used for the server's
+ *  VALIDATION_FAILED `details` and for the client's own pre-send parse of
+ *  `createBookingRequestSchema`, which produces the identical flatten() shape. */
+export function playerFieldErrors(
+  details: unknown,
+): { name?: string | undefined; phone?: string | undefined; email?: string | undefined; panel: string | null } {
+  if (typeof details !== "object" || details === null) return { panel: null };
+  const flat = details as { fieldErrors?: Record<string, unknown>; formErrors?: string[] };
+  const fieldErrors = flat.fieldErrors ?? {};
+  const nested = fieldErrors.player as { name?: string[]; phone?: string[]; email?: string[] } | undefined;
+  const name = nested?.name?.[0] ?? (fieldErrors["player.name"] as string[] | undefined)?.[0];
+  const phone = nested?.phone?.[0] ?? (fieldErrors["player.phone"] as string[] | undefined)?.[0];
+  const email = nested?.email?.[0] ?? (fieldErrors["player.email"] as string[] | undefined)?.[0];
+  return { name, phone, email, panel: flat.formErrors?.[0] ?? null };
+}
 
 type Recovery =
   | "retry-same" // same request, same idempotency key, a button the user presses
@@ -225,6 +275,13 @@ export const errorPresentation: Record<ErrorCode, ErrorPresentation> = {
   SLOT_OUT_OF_WINDOW: {
     title: "No longer bookable",
     detail: "That slot has passed, or runs past closing. Pick another.",
+    recovery: "refetch-and-pick",
+    surface: "toast",
+    reportToSentry: false,
+  },
+  SLOT_TOO_SOON: {
+    title: "Too soon",
+    detail: "That slot is too close to now. Pick a later one.",
     recovery: "refetch-and-pick",
     surface: "toast",
     reportToSentry: false,
@@ -326,6 +383,39 @@ export const errorPresentation: Record<ErrorCode, ErrorPresentation> = {
     recovery: "terminal",
     surface: "page",
     reportToSentry: true,
+  },
+  // The OTP panel (request -> code -> verify -> confirm) is the details
+  // screen in book.station.tsx: OTP_REQUIRED is a defensive fallback (the
+  // client always verifies before confirming), OTP_INVALID keeps the code
+  // input open, and OTP_EXPIRED reuses the same expired panel as a lapsed
+  // hold -- both mean "start this hold over."
+  OTP_REQUIRED: {
+    title: "Verify your phone",
+    detail: "Verify the code we sent before we can confirm this booking.",
+    recovery: "retry-same",
+    surface: "panel",
+    reportToSentry: true,
+  },
+  OTP_INVALID: {
+    title: "Wrong code",
+    detail: "That code does not match. Try again.",
+    recovery: "fix-input",
+    surface: "field",
+    reportToSentry: false,
+  },
+  OTP_EXPIRED: {
+    title: "Code expired",
+    detail: "That code expired, but this time may still be free.",
+    recovery: "rehold",
+    surface: "panel",
+    reportToSentry: false,
+  },
+  OTP_TOO_MANY: {
+    title: "Too many tries",
+    detail: "Too many tries. Wait a bit before trying again.",
+    recovery: "retry-same",
+    surface: "toast",
+    reportToSentry: false,
   },
   NOT_FOUND: {
     title: "Not found",

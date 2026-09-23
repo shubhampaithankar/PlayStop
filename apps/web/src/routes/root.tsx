@@ -9,8 +9,10 @@
 // package, so the relative form costs nothing and stays dual-environment.
 import * as React from "react";
 import { createRootRoute, Outlet, type ErrorComponentProps } from "@tanstack/react-router";
-import { Play, Square } from "lucide-react";
+import { Square, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Toaster } from "../components/ui/sonner.js";
+import { FOCUS_RING } from "../components/screen-ui.js";
 
 // import.meta.env is a Vite-only global (see lib/api.ts's envVar for the
 // same guard) -- undefined under node --test, never true there, so
@@ -27,15 +29,33 @@ const ReactQueryDevtools = import.meta.env?.DEV
     )
   : () => null;
 
+// DESIGN.md round 7: one word, one weight, no color split. The old
+// PLAY(cobalt)+STOP(ink) split read as two words; cobalt now carries the
+// whole word and the trailing STOP-square mark alike.
 function Wordmark() {
   return (
-    <span className="font-display flex items-center gap-0.5 text-lg uppercase tracking-wide">
-      <span className="text-primary">PLAY</span>
-      <Play aria-hidden="true" className="text-primary size-4" fill="currentColor" />
-      {/* DESIGN.md: STOP's square is never the accent -- it stays ink. */}
-      <span className="text-foreground">STOP</span>
-      <Square aria-hidden="true" className="text-foreground size-4" fill="currentColor" />
+    <span className="font-display text-brand dark:text-brand-bright flex items-center gap-1 text-lg uppercase tracking-wide">
+      PlayStop
+      <Square aria-hidden="true" className="size-4" fill="currentColor" />
     </span>
+  );
+}
+
+// Not the shadcn Button (components/ui/button.tsx) -- same rendered result
+// via FOCUS_RING, minus its "@/lib/utils" import, for the reason this
+// file's header comment gives: this route resolves under plain `node --test`.
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      className={`text-muted-foreground hover:bg-muted hover:text-foreground ml-auto flex size-9 items-center justify-center rounded-(--radius) transition-colors ${FOCUS_RING}`}
+    >
+      {isDark ? <Sun aria-hidden="true" className="size-4.5" /> : <Moon aria-hidden="true" className="size-4.5" />}
+    </button>
   );
 }
 
@@ -44,6 +64,7 @@ function RootComponent() {
     <>
       <header className="border-border flex h-14 items-center border-b px-4 md:px-6">
         <Wordmark />
+        <ThemeToggle />
       </header>
       <Outlet />
       <Toaster />

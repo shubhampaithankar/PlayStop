@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource/saira-semi-condensed/latin-700.css";
+@import "@fontsource/saira-condensed/latin-700.css";
 @import "@fontsource/ibm-plex-sans/latin-400.css";
 @import "@fontsource/ibm-plex-sans/latin-600.css";
 @import "@fontsource/ibm-plex-mono/latin-400.css";
@@ -29,6 +29,13 @@
   --color-hold-amber-bright: #FBBF24; /* dark */
   --color-stop-red: #B91C1C;        /* light */
   --color-stop-red-bright: #F87171; /* dark */
+  /* console art hues, decorative only -- never a state color (DESIGN.md "Imagery") */
+  --color-kind-ps5: #38A8E8;  /* ice blue */
+  --color-kind-ps2: #2F5FD0;  /* cobalt */
+  /* Brand ink, non-pressables only: wordmark, step counter, plate ink rule
+     (round 6). Never on anything tappable -- green/red still own controls. */
+  --color-brand: #2F5FD0;
+  --color-brand-bright: #5B8CFF;
 }
 
 /*
@@ -56,7 +63,34 @@
   --border: var(--color-edge-light);
   --input: var(--color-edge-light);
   --ring: var(--color-go);
-  --radius: 0.375rem; /* 6px, DESIGN.md "Radius Elevation and Motion" */
+  --radius: 0.625rem; /* 10px controls, DESIGN.md "Radius, Elevation, Motion" */
+  --radius-card: 1rem; /* 16px cards */
+
+  /* Round 5 surface layer: a card is a gradient plane with a hairline edge and
+     a layered shadow, not a flat box with a hard grey outline. The functional
+     --border token is unchanged and still used for inputs and real dividers. */
+  --edge-soft: #E4E9F0;
+  --edge-soft-strong: #CCD4E0;
+  --surface-gradient: linear-gradient(180deg, #ffffff, #f6f8fc);
+  --sheen-color: rgb(22 26 33 / 0.05);
+  /* Elevation: three stacked layers so the falloff reads soft, not stamped. */
+  --shadow-card:
+    0 1px 1px rgb(22 26 33 / 0.04),
+    0 4px 8px -2px rgb(22 26 33 / 0.06),
+    0 14px 28px -8px rgb(22 26 33 / 0.10);
+  --shadow-lift:
+    0 2px 4px rgb(22 26 33 / 0.06),
+    0 10px 20px -4px rgb(22 26 33 / 0.10),
+    0 32px 60px -14px rgb(22 26 33 / 0.20);
+  /* Green things get a green ambient, so "go" glows instead of sitting flat. */
+  --shadow-go:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 2px 6px -1px color-mix(in srgb, var(--primary) 45%, transparent),
+    0 12px 26px -8px color-mix(in srgb, var(--primary) 60%, transparent);
+  --shadow-go-lift:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 4px 10px -2px color-mix(in srgb, var(--primary) 50%, transparent),
+    0 20px 40px -10px color-mix(in srgb, var(--primary) 70%, transparent);
 }
 
 .dark {
@@ -79,6 +113,28 @@
   --border: var(--color-edge-dark);
   --input: var(--color-edge-dark);
   --ring: var(--color-go-bright);
+  /* Shadows barely read on pit-950; a 1px inset chalk highlight does the
+     lifting, the black ambient does the grounding. */
+  --edge-soft: rgb(237 239 242 / 0.10);
+  --edge-soft-strong: rgb(237 239 242 / 0.22);
+  --surface-gradient: linear-gradient(180deg, rgb(237 239 242 / 0.055), rgb(237 239 242 / 0.012));
+  --sheen-color: rgb(237 239 242 / 0.10);
+  --shadow-card:
+    inset 0 1px 0 rgb(237 239 242 / 0.06),
+    0 2px 6px rgb(0 0 0 / 0.3),
+    0 14px 32px -6px rgb(0 0 0 / 0.5);
+  --shadow-lift:
+    inset 0 1px 0 rgb(237 239 242 / 0.09),
+    0 4px 10px rgb(0 0 0 / 0.35),
+    0 30px 60px -10px rgb(0 0 0 / 0.65);
+  --shadow-go:
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    0 2px 6px -1px color-mix(in srgb, var(--primary) 30%, transparent),
+    0 14px 30px -10px color-mix(in srgb, var(--primary) 55%, transparent);
+  --shadow-go-lift:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 4px 10px -2px color-mix(in srgb, var(--primary) 35%, transparent),
+    0 22px 44px -12px color-mix(in srgb, var(--primary) 65%, transparent);
 }
 
 @theme inline {
@@ -94,10 +150,10 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -106,7 +162,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: "IBM Plex Sans", sans-serif;
-  --font-display: "Saira SemiCondensed", sans-serif;
+  --font-display: "Saira Condensed", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 }
 
@@ -116,26 +172,340 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
+    min-height: 100dvh;
+  }
+  /* Mono is a numeric face here: times, prices, the code. Line them up.
+     font-synthesis: none stops the browser faking a 600 weight Plex Mono
+     never shipped (only 400/500) -- the fake bold smeared the rupee sign
+     into a strikethrough. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-synthesis: none;
   }
 }
 
-/* DESIGN.md "held" cell state: transparent fill, 45deg amber stripes, 3px
- * stripe / 5px gap. Amber tone follows theme (bright on dark, deep on light)
- * via currentColor so callers set text color to pick the shade. */
-.texture-amber-stripes {
-  background-image: repeating-linear-gradient(
-    45deg,
-    currentColor 0,
-    currentColor 3px,
-    transparent 3px,
-    transparent 8px
-  );
+/* ---- Round 5 visual layer (DESIGN.md "Imagery", "Radius, Elevation, Motion") ---- */
+
+/* Page depth: a top glow, two far-off hue washes in the decorative console
+ * hues, and a faint dot field so the background is a place, not a fill.
+ * All decorative, none of it carries meaning. */
+body {
+  background-image:
+    radial-gradient(60rem 30rem at 50% -14rem, rgb(255 255 255 / 0.95), transparent 68%),
+    radial-gradient(44rem 26rem at 96% 4%, color-mix(in srgb, var(--color-kind-ps5) 12%, transparent), transparent 70%),
+    radial-gradient(38rem 24rem at 2% 96%, color-mix(in srgb, var(--color-kind-ps2) 9%, transparent), transparent 70%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--foreground) 7%, transparent) 1px, transparent 0);
+  background-size: auto, auto, auto, 26px 26px;
+}
+.dark body {
+  background-image:
+    radial-gradient(60rem 30rem at 50% -14rem, rgb(237 239 242 / 0.07), transparent 68%),
+    radial-gradient(44rem 26rem at 96% 4%, color-mix(in srgb, var(--color-kind-ps5) 16%, transparent), transparent 70%),
+    radial-gradient(38rem 24rem at 2% 96%, color-mix(in srgb, var(--color-kind-ps2) 20%, transparent), transparent 70%),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-chalk) 6%, transparent) 1px, transparent 0);
+  background-size: auto, auto, auto, 26px 26px;
 }
 
-/* DESIGN.md "maintenance" cell state: crosshatch, both diagonals, 6px pitch,
- * steel/slate-mut tone via currentColor. */
-.texture-steel-crosshatch {
-  background-image:
-    repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 6px),
-    repeating-linear-gradient(-45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 6px);
+@layer components {
+  /* A raised plane. Cards, recap boxes, anything that sits above the page. */
+  .surface {
+    border-radius: var(--radius-card);
+    border: 1px solid var(--edge-soft);
+    background-color: var(--card);
+    background-image: var(--surface-gradient);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Unavailable: flat, dashed, no plane. Depth means tappable. */
+  .ghost {
+    border-radius: var(--radius-card);
+    border: 1px dashed var(--edge-soft-strong);
+    background: none;
+    box-shadow: none;
+  }
+
+  /* Interactive cell: time buttons, length buttons. Same plane, control radius.
+     The edge here is the functional --border token, not the decorative
+     hairline: on a cell this small the border is the only thing delineating
+     the control, so WCAG 1.4.11 applies to it. Cards keep --edge-soft because
+     their art band and fill already identify them as objects. */
+  .tile {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+    background-image: var(--surface-gradient);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Selected: go green as a lit gradient plane. */
+  .tile-on {
+    border-radius: var(--radius);
+    border: 1px solid color-mix(in srgb, var(--primary) 65%, transparent);
+    background-color: var(--primary);
+    background-image: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 20%, var(--primary)),
+      var(--primary)
+    );
+    color: var(--primary-foreground);
+    box-shadow: var(--shadow-go);
+  }
+
+  /* The confirmation code: a plain bordered plane. Round 6 dropped the green
+     halo + top hairline -- the code box is not a "go" control, it is a
+     receipt; the ticket stub (screens 4/5, round-6 remainder) carries the
+     signature now. */
+  .code-box {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--edge-soft);
+    background-color: var(--card);
+    background-image: var(--surface-gradient);
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* The ticket stub (round-6 remainder): the object screens 4 (recap,
+     unissued) and 5 (confirmation, issued) are built as -- a booking is a
+     ticket carried to the counter. Two semicircular notches cut into the
+     left/right edges plus a dashed perforation, matching .stub-perf below.
+     overflow: hidden does the cutting: each notch is a plain circle in the
+     page's own background color, clipped at the card's rounded edge so only
+     the inward-facing half shows through -- no mask, no new dependency. */
+  .stub {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--edge-soft);
+    background-color: var(--card);
+    background-image: var(--surface-gradient);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Issued (screen 5 only): a cobalt cap rule along the top, drawn as a
+     pseudo-element rather than border-top so the confirm moment can animate
+     it (see the motion block below). Screen 4's recap is the same .stub
+     object without this class -- unissued, no cap rule. */
+  .stub-issued::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--color-brand);
+    transform-origin: left;
+  }
+  .dark .stub-issued::before {
+    background: var(--color-brand-bright);
+  }
+
+  /* The perforation: a dashed line bleeding to the stub's edges (negative
+     margin cancels the stub's p-6 padding) with a notch centered on each
+     end. Position: relative makes this element, not .stub, the containing
+     block, so the notches land exactly on the tear line regardless of how
+     tall the content above or below it is. */
+  .stub-perf {
+    position: relative;
+    margin-inline: -1.5rem;
+    border-top: 2px dashed var(--edge-soft-strong);
+  }
+  .stub-perf::before,
+  .stub-perf::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--background);
+    border: 1px solid var(--edge-soft);
+    transform: translateY(-50%);
+  }
+  .stub-perf::before {
+    left: -0.875rem;
+  }
+  .stub-perf::after {
+    right: -0.875rem;
+  }
+}
+
+/* The confirm button. Unlayered on purpose: it dresses a shadcn Button, whose
+ * bg-primary / hover:bg-primary/90 / shadow-xs are utilities, and a component
+ * layer loses to those. Unlayered wins, so the gradient and the green ambient
+ * survive both rest and hover without any `!` on the call site. */
+.btn-go {
+  border: 1px solid color-mix(in srgb, var(--primary) 65%, transparent);
+  background-color: var(--primary);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, #ffffff 20%, var(--primary)),
+    var(--primary)
+  );
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-go);
+}
+.btn-go:hover {
+  background-color: var(--primary);
+  box-shadow: var(--shadow-go-lift);
+}
+
+/* Forced colors flattens every fill, so selection cannot be fill-only there. */
+@media (forced-colors: active) {
+  .tile-on {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+  :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+/* Console card art (round 6, "the Marquee"): a machine name plate. Solid
+ * kind hue, the kind word bleeding off the left edge huge and clipped, a
+ * hard cobalt ink rule along the bottom -- no wash, no fade, a loud opinion
+ * instead of a softened one (playstop-design-direction). Decorative only,
+ * never a state; the words in the card body carry every state. Unavailable
+ * cards desaturate and lose the ink rule. */
+.art-band {
+  position: relative;
+  height: 6.5rem;
+  flex: none;
+  overflow: hidden;
+  background-color: var(--art-hue);
+  border-bottom: 3px solid var(--color-brand);
+  transition: filter 0.22s ease;
+}
+.dark .art-band {
+  border-bottom-color: var(--color-brand-bright);
+}
+.art-word {
+  position: absolute;
+  top: 50%;
+  left: -0.35em;
+  transform: translateY(-50%);
+  font-size: 8rem; /* decorative and clipped; exempt from the type scale */
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: color-mix(in srgb, var(--card) 28%, transparent);
+  user-select: none;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.art-ps5 { --art-hue: var(--color-kind-ps5); }
+.art-ps2 { --art-hue: var(--color-kind-ps2); }
+.art-ps3 { --art-hue: var(--color-steel); }
+.art-racing-sim { --art-hue: var(--color-steel); }
+.art-racing-sim::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-conic-gradient(
+    color-mix(in srgb, var(--foreground) 5%, transparent) 0 25%,
+    transparent 0 50%
+  );
+  background-size: 12px 12px;
+}
+.art-dimmed {
+  filter: saturate(0);
+  opacity: 0.4;
+  border-bottom: none;
+}
+
+/* Motion (DESIGN.md budget). Everything sits behind the reduced-motion gate;
+ * without it, elements simply render in their finished state. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+    }
+  }
+  .anim-rise {
+    animation: rise-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--rise-delay, 0s);
+  }
+  @keyframes select-pop {
+    45% {
+      transform: scale(1.04);
+    }
+  }
+  .anim-select {
+    animation: select-pop 0.2s ease-out;
+  }
+  /* Confirm moment (screen 5, round-6 remainder): the code stamps in and the
+     stub's cap rule draws left to right. Outside this gate .stub-issued::before
+     has no transform (drawn, full width) and the code has none either, so
+     reduced motion is simply the finished state, per the file's existing
+     pattern -- see .anim-rise above. */
+  @keyframes code-stamp {
+    from {
+      transform: scale(1.06);
+    }
+  }
+  .anim-stamp {
+    animation: code-stamp 0.22s ease-out both;
+  }
+  @keyframes cap-draw {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  .stub-issued::before {
+    animation: cap-draw 0.3s ease-out both;
+  }
+  .pressable {
+    transition:
+      transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.22s ease,
+      border-color 0.22s ease;
+  }
+  .pressable:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  /* Only the travel is motion. The depth and edge changes live outside this
+     gate so reduced-motion users keep a hover affordance. */
+  @media (hover: hover) and (pointer: fine) {
+    .lift:hover {
+      transform: translateY(-3px);
+    }
+    /* Reactive plate (round 6 candy): the word shifts toward the fold on
+       hover. Transform is motion, so it stays behind this gate; the hue
+       brighten below is not and lives in the plain hover block outside it. */
+    .lift:hover .art-word {
+      transform: translateY(-50%) translateX(4px);
+    }
+    /* One light sweep across a card on hover. Pure garnish. */
+    .sheen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(
+        105deg,
+        transparent 32%,
+        var(--sheen-color) 46%,
+        transparent 62%
+      );
+      transform: translateX(-130%);
+      transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sheen:hover::after {
+      transform: translateX(130%);
+    }
+  }
+}
+
+/* Hover depth: not motion, so it is outside the reduced-motion gate. Pointer
+ * devices only -- on Android a tap leaves :hover stuck on the card it just
+ * selected, which reads as a second selected state. */
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    box-shadow: var(--shadow-lift);
+    border-color: var(--edge-soft-strong);
+  }
+  .tile.lift:hover {
+    border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  }
+  .lift:hover .art-band {
+    filter: brightness(1.08);
+  }
 }

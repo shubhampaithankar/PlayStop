@@ -1,28 +1,63 @@
-# DESIGN.md: PlayStop web (milestone 3)
+# DESIGN.md: PlayStop web (milestone 3, round 5)
 
-Binding design contract for `apps/web`. Implementation must not deviate without updating this file.
-Grounded in: F1/WEC broadcast timing towers, MoTeC/sim-racing telemetry screens, PS5 system UI
-typography discipline. Not: cyberpunk neon, pixel art, generic dark dashboard.
+Binding design contract for `apps/web`. Implementation must not deviate without updating this
+file. Grounded in one test, not a mood board: a 15-year-old on a phone, or their parent, books
+a PS5 for tonight without anyone explaining the screen. Not: an ops dashboard, a timing tower,
+a data visualisation, or anything that needs a legend.
+
+## Superseded (2026-08-11, round 3) -- do not rebuild
+
+Two rounds died the same way: optimising for information density instead of obviousness.
+
+- Round 1: the all-stations availability matrix (stations x 24 time columns). Read as
+  property management software. Staff view at best, out of scope.
+- Round 2: station-first browse with night-strips, transport glyphs as status language,
+  six chip textures, and a legend to decode them. The venue owner could not tell what the
+  screen was doing.
+
+Dead and not coming back in the player flow: the night-strip and its playhead tick, transport
+glyphs (play triangle / square / wrench) as status, the six-texture chip system (stripes,
+crosshatch, dashed outlines), the state legend, the half-hour chip row, the -30/+30 steppers,
+the kind filter, kind badges on cards, party size and email fields, 24-hour time.
+
+The rule that replaced them: **if it needs a legend, it failed.** Words carry every state.
+One decision per screen. Color, typography, and the contrast table carry over unchanged.
+
+Round 4 (2026-08-11) kept that structure whole and rebuilt only the visual layer: elevation,
+motion, per-kind card art, and a stronger type scale. Nothing about the flow, the words, or
+the states changed.
+
+Round 5 (2026-08-12) is the same kind of change again: round 4 read flat and dated, hard 1px
+mid-grey outlines on flat fills. Surfaces became gradient planes on hairline edges with
+three-layer shadows, radii grew (10px controls, 16px cards), green gained its own ambient
+glow, the page got a dot field and two far-off hue washes, and hover added a lift plus one
+light sweep. Structure, words, and states are untouched.
 
 ## Brand and Voice
 
-- Product: self-serve station booking for a physical gaming lounge (PS5/PS3/PS2/racing sim, per half hour, 14:00 to 02:00).
-- Audience: players on phones, often standing in or near the venue, deciding between two stations.
-- The page's one job: get from "tonight?" to a confirmation code in under a minute.
-- Concept: **a timing board, not a storefront.** The availability grid is styled like a race
-  timing tower: station rows, monospaced time columns, one live playhead at the current time.
-  Time is the material of the product (you buy half-hour cells, a hold burns down, the night
-  advances), so time is drawn as a physical track everywhere.
-- Brand hook: the name IS the transport controls. Wordmark: `PLAY` in display face + a solid
-  play triangle, `STOP` counterweighted with a filled square. Green means go (select, confirm),
-  red means stop (cancel, expiry). These two are functional colors, never decoration.
-- Relation to the portfolio site (16-bit game UI): deliberate sibling, not a copy. Same
-  conviction (the UI is a game system, not a document), different era: this is the modern
-  console / broadcast register because the venue rents PS5s, not NESes, and because a
-  state-dense 15x24 grid needs telemetry discipline, not chunky pixel frames.
-- Voice: pit-wall terse. Sentence case everywhere except display headings and station IDs
-  (uppercase). Active verbs on buttons ("Hold this slot", "Confirm booking", "Cancel booking").
-  Errors are direct: "Someone else holds 19:30 to 20:30. Pick another start." Never "Oops".
+- Product: self-serve station booking for a physical gaming lounge (PS5/PS3/PS2/racing sim,
+  14:00 to 02:00, half-hour slots in the backend, whole hours in the player flow).
+- Audience: a teenager or casual adult on a phone, often standing in the venue, mildly
+  impatient, never trained on the UI. Their whole intent: "I want a PS5 tonight at 8, for
+  two hours."
+- The page's one job: get from that sentence to a confirmation code in under a minute.
+- Structure: four screens, one decision each. Which console. What time. How long. Who are
+  you. Then the code, big enough to read across a room.
+- Words, not symbols. Every state is a plain phrase: "Free now", "Free from 8:30 pm",
+  "Full tonight", "Being fixed", "taken". No glyph, texture, or color ever carries meaning
+  alone; color only reinforces words.
+- Times are 12-hour with am/pm ("8:30 pm"). Money is rupees with the sign, always a total
+  the player can pay, never a rate to multiply: "₹300 an hour", "2 hours, ₹600".
+- Wordmark (round 7, 2026-09-23): `PlayStop` set as one uppercase word in the display face,
+  single weight, no color split. Cobalt is the single accent, carried by the whole word and
+  the trailing filled-square mark alike. It is a logo only, not a status language. Superseded:
+  the round 3-6 two-colour `PLAY`(cobalt)+`STOP`(ink) split, which read as two words.
+- Green means go (free, selected, confirm), red means stop (cancel, expiry). Functional,
+  never decorative.
+- Voice: short plain sentences, sentence case, active verbs ("Book for ₹600"). Errors are
+  direct: "Someone took 9:30 pm while you were looking. Pick another time." Never "Oops".
+- Nothing unavailable looks tappable: taken times and full consoles render as plain grey
+  text (dashed border or line-through plus the word), never as disabled-looking buttons.
 
 ## Color
 
@@ -36,7 +71,7 @@ Tailwind v4 tokens, paste into the global CSS. Light is default, dark via `.dark
 @theme {
   /* base, dark ("night race") */
   --color-pit-950: #101318;   /* page bg */
-  --color-pit-900: #181D26;   /* raised surface: cards, free cells */
+  --color-pit-900: #181D26;   /* raised surface: cards */
   --color-pit-700: #39404E;   /* decorative hairlines only, fails 3:1 on purpose */
   --color-edge-dark: #626C80; /* functional borders on dark: 3.52:1 vs pit-950 */
   --color-chalk: #EDEFF2;     /* text on dark */
@@ -47,6 +82,9 @@ Tailwind v4 tokens, paste into the global CSS. Light is default, dark via `.dark
   --color-slate-mut: #4B5563; /* muted text on light */
   --color-hairline: #C3CAD5;  /* decorative hairlines on light */
   --color-edge-light: #6E7888;/* functional borders on light: 4.12:1 vs paper */
+  /* console art hues, decorative only -- never a state color (see Imagery) */
+  --color-kind-ps5: #38A8E8;  /* ice blue */
+  --color-kind-ps2: #2F5FD0;  /* cobalt */
   /* signal pair + warning, per theme */
   --color-go: #15803D;        /* light-theme green */
   --color-go-bright: #4ADE80; /* dark-theme green */
@@ -70,176 +108,196 @@ Measured contrast (WCAG relative luminance), all pass AA (4.5:1 text, 3:1 non-te
 | Muted text on page bg | steel/pit-950 **7.32** | slate-mut/paper **6.98** |
 | Green as text/icon | go-bright/pit-950 **10.68** | go/paper **4.63** |
 | Button label on green | pit-950/go-bright **10.68** | white/go **5.02** |
-| Amber as text/stripe | amber-bright/pit-950 **11.15** | hold-amber/paper **4.64** |
+| Amber as text | amber-bright/pit-950 **11.15** | hold-amber/paper **4.64** |
 | Red as text | red-bright/pit-950 **6.73** | stop-red/paper **5.98** |
 | Label on red button | pit-950/red-bright **6.73** | white/stop-red **6.47** |
-| Cell border (non-text) | edge-dark/pit-950 **3.52** | edge-light/paper **4.12** |
-| Booked solid fill vs bg | chalk/pit-950 **16.16** | ink/paper **16.11** |
-
-`pit-700` and `hairline` are for row separators and card outlines that repeat information
-already carried elsewhere. Never use them as the only boundary of an interactive target.
+| Border (non-text) | edge-dark/pit-950 **3.52** | edge-light/paper **4.12** |
 
 ## Typography
 
 Three faces by role, self-hosted (fontsource), subset to latin:
 
-- **Display: Saira SemiCondensed** 700 only (600 dropped to save a request, see the note below). Uppercase, `tracking-wide` (0.025em). Headings,
-  station IDs, the wordmark, section eyebrows. This is the motorsport voice; nowhere else.
-- **Body: IBM Plex Sans** 400/600 (500 dropped, see the note below). Everything conversational: labels, form fields,
-  paragraphs, buttons.
-> Font budget, decided 2026-08-09: six files, roughly 120 KB. The original
-> contract specified eight (Saira 600, Plex Sans 500 as well). Those two were
-> cut for about 40 KB and two fewer requests on a cold start, which matters
-> because the API is on a spin-down free tier and first paint already waits
-> on it. Reinstate them only with a measured reason.
+- **Display: Saira SemiCondensed** 700 only. Uppercase, `tracking-wide`. Screen titles,
+  console names, the wordmark. Nowhere else.
+- **Body: IBM Plex Sans** 400/600. Everything conversational: status words, labels, form
+  fields, buttons.
+- **Utility: IBM Plex Mono** 400/500 with `font-variant-numeric: tabular-nums`. Times,
+  prices, the countdown, the confirmation code.
 
-- **Utility: IBM Plex Mono** 400/500 with `font-variant-numeric: tabular-nums`. Every time
-  label, price, countdown, confirmation code, date. If it is a number a player compares or
-  copies, it is mono.
+> Font budget, decided 2026-08-09: six files, roughly 120 KB (Saira 600 and Plex Sans 500
+> cut). Reinstate only with a measured reason.
 
-Scale (rem, mobile-first): 12 (`text-xs`, grid time labels, legend), 14 (`text-sm`, body
-default on mobile, cell aria hints), 16 (`text-base`, body desktop, inputs), 18 (`text-lg`,
-station names), 24 (`text-2xl`, screen titles), 34 (display, landing venue name), 48
-(countdown digits in the hold panel). Line-height 1.5 body, 1.1 display. No font size outside
-this list.
+Scale (px, mobile-first): 12 (fine print, the word "taken", the step counter), 14 (secondary
+lines), 16 (body, inputs, time buttons), 20 (console names on cards and recaps), 32 (screen
+titles), 60 (confirmation code). Line-height 1.5 body, 1.1 display. One decorative exception:
+the card art word (Saira 700 at 104px, clipped by the band, `aria-hidden`, never read as
+text). No other font size outside this list.
 
 ## Spacing and Layout
 
-4px base scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Content max-width 1100px centered,
-16px page gutter on mobile, 24px from `md`.
+4px base scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Content max-width 1100px centered on the
+console grid; every later screen is a single centered column, max-width 28rem. 16px page
+gutter on mobile, 24px from `md`. Every tap target at least 44px tall; time and length
+buttons 56 to 64px.
 
-**The grid (`/book`) is designed first; everything else inherits.**
+Flow: `/book` pick a console -> pick a start time -> how long -> your details -> `/booking/:id`
+code. Each screen after the first has a plain "Back" link. Screens one to
+four show a muted fine-print step counter ("Step 2 of 4") above the title; it is the only
+eyebrow in the app and it carries real information. `/` redirects into `/book`; there
+is no separate landing screen to design.
 
-- Desktop (>= 768px): timing-tower orientation. Stations are rows, time runs left to right.
-  Sticky left rail (station name + kind badge + rate, 160px), sticky time header (mono, every
-  hour labeled, half hours ticked). Cells 40px wide x 48px tall, 2px gap.
-- Mobile (< 768px): transposed. Time runs down (natural thumb scroll), stations are columns
-  with horizontal scroll. Sticky top station header (56px, name + kind), sticky left time rail
-  (56px, mono). Cells 44px x 44px minimum, 2px gap. Snap scrolling per station column.
-- Wide content scrolls inside the grid container only; the page never scrolls horizontally.
+### 1. Pick a console (`/book`)
 
-```
-desktop                              mobile
-+---------+--------------------+     +----+------------------+
-| date  < 2026-08-09 >  legend |     |date pick  |legend     |
-+---------+--------------------+     +----+------------------+
-|         | 14:00 15:00 16:00 →|     |    |PS5-1 PS5-2 SIM →|
-| PS5-1   | [][][][][][][][][] |     |1400| []   []    []   |
-| PS5-2   | [][][][][][][][][] |     |1430| []   []    []   |
-| SIM-1   | [][][][][][][][][] |     |1500| []   []    []   |
-|   ▼ playhead at now          |     |  ← playhead row →    |
-+------------------------------+     +----+------------------+
-| selected: PS5-2 19:30-21:00  920 INR   [ Hold this slot ]  |
-+------------------------------------------------------------+
-```
+Card grid: 1 column under `md`, 2 from `md`, 3 from `lg`, 16px gap. Card content, in full:
 
-Selection summary is a sticky bottom bar (mobile) / bottom-right card (desktop) that appears
-once a start cell is tapped, showing station, range, running `priceBooking` total in mono, and
-the primary CTA.
+1. Art band, 104px tall (see Imagery). Desaturated and dimmed to 45% when the card is not
+   bookable, so nothing unavailable looks inviting.
+2. Console name (display 20px) with price right-aligned: "₹300 an hour" (number in mono).
+3. "Now playing: EA FC 26" or "Nothing playing" (muted 14px). DATA GAP: `nowPlaying` has no
+   API field yet; it stays in the design because it is the most human thing on the card.
+   If it never ships, the line is dropped; the art band, not the game title, is the card's
+   visual anchor (see Imagery).
+4. Status in words, 16px semibold: "Free now" (go green) / "Free from 8:30 pm" /
+   "Full tonight" / "Being fixed" (both muted).
 
-**Signature element: the playhead.** A 2px line in the theme's go green crossing the grid at
-the current time (only when viewing today), with a small solid play-triangle at its head and
-`NOW` in 12px mono. The same motif, time as a consumable track, reappears exactly once more:
-the hold countdown bar. Nothing else glows, animates, or takes the accent by default. This is
-the one loud thing.
+Bookable cards (free now or free later) are whole-card buttons. Full or broken consoles are
+plain dashed-border text blocks, all muted, not tappable. Nothing else is on the card.
 
-Screens:
-- `/` landing: venue name in display face, opening hours ("14:00 to 02:00" in mono), date
-  picker (shadcn Calendar: disable past, beyond `maxAdvanceDays`, and `blackoutDates`), station
-  kind summary. No hero illustration.
-- `/book` grid as above. `closed` reasons render a full-grid empty state with the reason in
-  plain words. `degraded: true` renders an amber Alert above the grid: "Live holds are
-  unavailable right now. A slot shown free may already be held."
-- `/book/:stationId` hold panel: selected range recap, countdown (below), player form
-  (name required, email/phone optional), confirm CTA.
-- `/booking/:id` confirmation: code in 24px mono inside a bordered box (the one thing the
-  player must keep, say so), booking recap, cancel button (destructive variant, confirm Dialog).
+### 2. Pick a start time
 
-## Radius Elevation and Motion
+Header: Back, "Pick a start time", one recap line ("PS5-1, ₹300 an hour"). Then a 3-column
+grid of 56px-tall time buttons, "8:00 pm" through the last start that fits an hour before the
+booking window closes. Taken times render as grey line-through text with the word "taken"
+(or "being fixed") beneath; they are not buttons. Past times are absent. A free half hour that
+cannot fit the 1-hour minimum renders as taken. Tapping a time advances.
 
-- Radius: 6px cards/inputs/buttons, 2px grid cells, 999px only on kind badges. Nothing else.
-- Elevation: flat. Depth comes from surface steps (bg vs raised) plus 1px borders. One shadow
-  in the whole app: the sticky selection bar (`0 -4px 16px rgb(0 0 0 / 0.15)`) so it reads as
-  floating above the grid it summarizes.
-- Motion budget, entire app: (1) grid mount, playhead draws in over 200ms and cell columns fade
-  in with a 15ms stagger, once per date change; (2) countdown bar width, linear 1s steps;
-  (3) countdown final-20s pulse; (4) shadcn defaults for Dialog/Drawer. Nothing else moves.
-  `prefers-reduced-motion`: kill 1 and 3 entirely (instant render, static bar color change
-  still applies), keep 2 as stepped updates.
+### 3. How long
 
-**Hold countdown (TTL = `ttlSeconds`, default 300):** full-width Progress bar in the hold
-panel, remaining time in 48px mono to its right (`m:ss`). Width = remaining/ttl, updated per
-second against `expiresAt` (never a client-side counter alone; recompute from the timestamp so
-tab sleep does not lie). Color by remaining time: green above 60s, amber 60 to 21s, red at 20s
-and below plus a 1s opacity pulse on the digits. Announce via a polite `aria-live` region at
-60s ("One minute left on your hold"), 20s, and 0. At expiry: bar empties, panel border turns
-red, form disables, content swaps to "Hold expired, the slot may have been taken" with two
-actions: "Try to hold again" (re-POST /holds) and "Back to grid". A 410 `HOLD_EXPIRED` on
-confirm lands on the same state.
+Header: Back, "How long?", recap ("PS5-1, starting 8:30 pm"). Three full-width 64px buttons:
+"1 hour ₹300", "2 hours ₹600", "3 hours ₹900" (prices per station rate). A length that
+runs into someone else's booking renders as grey line-through text with "taken from 9:30 pm".
+Tapping a length advances. Selected buttons here and on the time screen fill go green.
 
-## Components (variants and states)
+### 4. Your details
+
+Recap card in plain sentences, built as the ticket stub (see Imagery), unissued: console
+name, then the tear, then "Tonight, 8:30 pm to 10:30 pm", "2 hours, ₹600". Below: Name,
+Phone (both required), one full-width green button "Book for ₹600", and one muted line:
+"This spot is yours for the next 4:32" (mono digits, live against `expiresAt`, never a
+client-only counter). Under 60 seconds the digits turn red and the line reads "Hurry, this
+spot is yours for the next 0:41". At expiry the form disables and the screen says "Your time
+ran out and someone may have taken the spot." with two buttons: "Try again" and "Pick
+another time". A 410 on confirm lands on the same state. No progress bar, no 48px countdown
+panel; the sentence is the countdown.
+
+### 5. Booked (`/booking/:id`)
+
+Centered column: "You're booked", then the same stub issued: the code in mono 60px above the
+tear, station and time below it, one recap sentence including what to pay ("Pay ₹600 at the
+counter."), and a quiet outline "Cancel this booking" (red text, confirm Dialog).
+
+## Imagery (decided round 4)
+
+CSS-generated console art, zero image assets. Real game artwork is publisher IP a lounge
+cannot license for a booking page, and stock console photos read as a store listing. The art
+is a band across the top of each console card, built from tokens only:
+
+- A two-point hue wash, strong from the top-left and faint from the bottom-right: ps5
+  `--color-kind-ps5` (ice blue), ps2 `--color-kind-ps2` (cobalt), ps3 `--color-steel`. Sims
+  use steel plus a checkered-flag strip fading out to the right
+  (`repeating-conic-gradient`, neutrals only, no new hue). The band's lower half fades back
+  into the card so it belongs to the card instead of sitting on top of it.
+- The kind word ("PS5", "PS3", "PS2", "SIM") set enormous in Saira 700 (104px), clipped by
+  the band, at roughly 38% hue alpha. Pure decoration, `aria-hidden`; the real console name
+  sits in the card body below it.
+- These hues are decorative only. They are never green, red, or amber, and no state is ever
+  expressed by hue. Words still carry every state; the band never needs decoding.
+- Unavailable cards render the band desaturated at 45% opacity and stay shadow-free.
+- If `nowPlaying` never gets an API field, the "Now playing" line is dropped and the card
+  loses nothing structural: the band is the visual anchor, the game title is garnish.
+
+The ticket stub (round 6): a booking is a ticket carried to the counter, so screens 4 and 5
+are built as that object (`.stub` in `index.css`), not a plain recap card. Two semicircular
+notches are cut into its left and right edges at the height of a dashed perforation, dividing
+it into two zones the way a torn stub would be. Screen 4 (recap) is the object unissued: no
+cap rule. Screen 5 (confirmation) is the same object issued: a cobalt `--color-brand`
+(`--color-brand-bright` in dark) rule caps the top edge, and, motion permitting, the code
+stamps in (scale 1.06 to 1, 220ms) while the cap rule draws left to right (300ms) -- the one
+orchestrated moment on screen 5, same reduced-motion gate as everything else.
+
+Theme: the header carries a sun/moon toggle next to the wordmark, cycling light and dark
+(`next-themes`, `attribute="class"`, default follows the system preference). Before round 6
+`.dark` was applied nowhere outside the dev-only `/__mockups` route.
+
+## Radius, Elevation, Motion (rebuilt round 5)
+
+- Radius: 10px controls (buttons, inputs, time cells), 16px cards (`--radius-card`).
+  Nothing else.
+- Surfaces are planes, not boxes. A card is `--surface-gradient` (a barely-there vertical
+  gradient) on a hairline `--edge-soft` edge, with `--shadow-card` under it. The functional
+  `--border` token stays as-is and is still what inputs and real dividers use; a card's
+  outline is decoration and does not need 3:1.
+- Elevation, two levels plus flat, per theme via tokens. Each is three stacked shadows so
+  the falloff reads soft instead of stamped:
+  - `--shadow-card`: resting cards and bookable buttons. Light: ink at 4-10% alpha. Dark:
+    near-black ambient plus a 1px inset chalk top highlight, because shadows barely read on
+    pit-950; the highlight does the lifting.
+  - `--shadow-lift`: hover and the confirmation code box. Same recipe, longer throw.
+  - `--shadow-go` / `--shadow-go-lift`: green things (selected cells, the book button) cast
+    a green ambient, so go glows. Green is still functional-only; the glow follows the
+    green, it never appears on its own.
+  - Unavailable things stay flat: no shadow on dashed placeholders. Depth means tappable.
+- Page background: a top glow, two far-off washes in the decorative console hues, and a
+  26px dot field. Decorative depth only; carries no meaning.
+- Motion budget, all inside `@media (prefers-reduced-motion: no-preference)` so the reduced
+  path is simply the finished state, never a broken one:
+  - Screen entrance: content rises 14px from 98.5% and fades in over 450ms on an ease-out
+    curve, grid children staggered 35ms apart, delay capped at the ninth child. One
+    orchestrated moment per screen; nothing loops.
+  - Hover on a bookable thing: lifts 3px to `--shadow-lift`, plus one diagonal light sweep
+    across the card over 750ms. Pointer only, garnish only.
+  - Press: any bookable button compresses 1px and 99% scale for 120ms.
+  - Selection beat: tapping a time or length fills it green, pops to 104% for 200ms, and
+    the flow advances 180ms later. With reduced motion the advance is immediate (checked
+    via `matchMedia`) and selection stays obvious: the green fill is color, not motion.
+  - The countdown digit color change, and shadcn defaults for Dialog/Drawer. Nothing else
+    moves.
+
+## Components
 
 shadcn/ui mapping, themed, never restyled beyond tokens:
 
 | UI | shadcn | Notes |
 |---|---|---|
-| Date picker | `Calendar` + `Popover` | disabled dates from venue config |
-| Kind filter | `ToggleGroup` | All / PS5 / PS3 / PS2 / Racing sim |
-| Selection bar CTA, confirm | `Button` default variant (go green) | |
-| Cancel booking | `Button` destructive + `Dialog` confirm | |
-| Hold panel (mobile) | `Drawer` | desktop: `Dialog` |
-| Player form | `Form` + `Input` + `Label` | inline errors below fields, red text + icon |
-| Countdown | `Progress` + mono digits | see above |
-| Degraded / closed notices | `Alert` | amber / neutral |
-| API 409/410 feedback | `Sonner` toast + cell state refetch | message names the time range |
-| Loading grid | `Skeleton` rows in grid geometry | |
-| Kind badge, state legend | `Badge` outline variant | |
-| Confirmation code | custom bordered `<code>` block | mono 24px, copy button |
+| Book / confirm CTA | `Button` default (go green) | full-width on mobile |
+| Cancel booking | `Button` outline, red text + `Dialog` confirm | |
+| Player form | `Input` + `Label` | inline errors below fields, red text |
+| Closed / degraded notice | `Alert` | plain words: "Bookings are closed today." / "Live updates are down. A console shown free may already be taken." |
+| Taken-while-booking (409/410) | `Sonner` toast + refetch | names the time: "Someone took 9:30 pm while you were looking. Pick another time." |
+| Loading | `Skeleton` in card / button geometry | |
+| Confirmation code | custom bordered block | mono 60px |
 
-**Grid cells are not a shadcn component.** They are custom `<button>` / `<div role="gridcell">`
-elements inside `role="grid"`. Only `free` cells are buttons; all others are non-focusable
-gridcells with `aria-disabled` and a full text label ("19:30, PS5-2, booked"). Arrow keys move
-a roving tabindex across the grid; Enter/Space selects.
-
-**The six cell states.** Each has a texture or structure signal that survives grayscale; hue is
-reinforcement, never the only channel. Legend (Badge chips reproducing each texture + word) is
-always visible above the grid.
-
-| State | Fill | Border | Non-color signal |
-|---|---|---|---|
-| `free` | raised surface (pit-900 / white) | 1px solid edge-* | the only outlined-and-empty cell, and the only focusable one |
-| selected (client) | go green | none | solid play triangle glyph, label inverts |
-| `held` | transparent + 45deg amber stripes (3px stripe / 5px gap, `repeating-linear-gradient`) | 1px amber | diagonal stripes |
-| `booked` | solid theme ink (chalk on dark, ink on light) | none | the only fully solid cell |
-| `maintenance` | crosshatch in steel/slate-mut (both diagonals, 6px pitch) | 1px edge-* | crosshatch + 12px wrench icon (lucide `wrench`) when cell >= 40px |
-| `past` | page bg (recessed) | none | structurally blank, visually absent |
-| `too_far_ahead` | page bg | 1px dashed edge-* | dashed outline, empty |
-
-Stripe and crosshatch colors meet 3:1 against their cell background in both themes (amber
-11.15 dark / 4.64 light; steel 7.32 dark / slate-mut 6.98 light). Focus ring: 2px go-green
-outline with 2px offset, visible on every focusable element, both themes.
-
-Range picking: tapping a free cell selects the station's minimum run (`minSlots`); +30 / -30
-steppers in the selection bar grow or shrink the run, clamped to `maxSlots` and to contiguity
-in the returned cell array (array adjacency, never timestamp arithmetic, per the DST rule in
-milestone-2-spec section 6). Cells in the pending range render as selected.
+Console cards, time buttons, and length buttons are custom elements (buttons when bookable,
+plain text when not), not shadcn components. Focus ring: 2px go-green outline, 2px offset,
+visible on every focusable element, both themes.
 
 ## Do NOT
 
-- Do not convey any cell state by hue alone, and do not add a seventh visual state. `degraded`
-  is a banner, not a cell texture.
-- Do not compute cell adjacency with `startsAt + n * gridMinutes`. Array order is the truth
+- Do not add any element that needs explaining: no legends, no glyph languages, no textures,
+  no strips, no data visualisation of the night. If a state cannot be said in one plain
+  phrase, the state model is wrong, not the words.
+- Do not put more than one decision on a screen.
+- Do not render anything unavailable as a tappable-looking control.
+- Do not show rates the player must multiply; show payable totals.
+- Do not use 24-hour time anywhere player-facing.
+- Do not compute slot adjacency with `startsAt + n * gridMinutes`; array order is the truth
   (DST nights break the arithmetic). Do not filter cells on `localLabel` dates.
-- Do not run the countdown off `setInterval` drift; derive remaining from `expiresAt` each tick.
-- Do not use green or red decoratively. Green appears only on: playhead, selection, focus ring,
-  primary CTA, healthy countdown. Red only on: cancel, errors, final countdown, expiry.
-- Do not use pixel fonts, dithering, or 16-bit frames. That is the portfolio site's register.
-- Do not use neon glows, purple/indigo gradients, glassmorphism, backdrop blur, emoji as icons,
-  `rounded-2xl` + `shadow-lg` cards, or Inter.
-- Do not put the accent on the wordmark's STOP square. It is ink, always.
+- Do not run the countdown off `setInterval` drift; derive remaining from `expiresAt`.
+- Do not use green or red decoratively. Green: free-now words, selection, focus ring, the
+  book button. Red: cancel, errors, final countdown, expiry.
 - Do not show a client-computed price as final; label it "estimated" until the hold's
-  `quoteMinor` arrives, then show `quoteMinor`; confirm response `totalMinor` is authoritative.
-- Do not animate cell state changes on refetch (the grid would shimmer constantly); swap
-  instantly.
-- Do not shrink grid touch targets below 44x44 on mobile or 40x48 on desktop for density.
-  If a venue ever exceeds 15 stations, paginate stations, never shrink cells.
+  `quoteMinor` arrives; confirm response `totalMinor` is authoritative.
+- Do not use pixel fonts, neon glows, purple/indigo gradients, glassmorphism, emoji as
+  icons, `rounded-2xl` + `shadow-lg` cards, or Inter.
+- Do not shrink tap targets below 44px or status text below 12px to fit more on screen.
+  Fewer columns, never smaller type.

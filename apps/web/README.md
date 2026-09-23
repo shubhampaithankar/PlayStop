@@ -1,9 +1,26 @@
 # @playstop/web
 
 Vite + React 19 + TypeScript + Tailwind CSS v4 front end for PlayStop.
-Milestone 3 in progress: shadcn/ui and the design tokens from `DESIGN.md` are in,
-and `src/lib/api.ts` is the client's single network choke point. The booking UI
-itself is not built yet.
+The booking flow is built: pick a console, a start time, a length, enter your details,
+and get a confirmation code. `src/lib/api.ts` is the client's single network choke point
+and `DESIGN.md` is the binding design contract for every screen.
+
+## Screens
+
+`/` redirects to `/book`. There is no landing screen and no date picker: the app books
+tonight only, per `DESIGN.md`.
+
+| Route | Screen |
+|---|---|
+| `/book` | 1, pick a console |
+| `/book/$stationId` | 2, pick a start time |
+| `/book/$stationId?start=` | 3, how long, and the tap that creates the hold |
+| `/book/$stationId?start=&slots=` | 4, your details, the countdown, and confirm |
+| `/booking/$bookingId?code=` | 5, booked, with the code and cancel |
+
+Screens 2 to 4 are one route in three states. `start` and `slots` are search params, not
+path segments, so the back button, a reload, and a pasted link all behave, and the record
+in `sessionStorage` can be compared against them on mount (`milestone-3-spec.md` section 5).
 
 ## Run locally
 
@@ -22,9 +39,16 @@ first request if either is missing:
   in the data model but each deployment serves one venue, so the slug is configuration
   rather than a route parameter the user picks.
 
-| Var | Default | Notes |
-| --- | --- | --- |
-| `VITE_API_URL` | `http://localhost:3001` | falls back in code, `App.tsx`, if unset |
+Neither has a default. `baseUrl()` in `src/lib/api.ts` throws if either is missing, which
+is deliberate: a silent fallback would point a deployed build at localhost and fail at the
+first booking rather than at boot.
+
+For local development the slug is the one `apps/api/src/seed.ts` creates:
+
+```
+VITE_API_URL=http://localhost:3001
+VITE_VENUE_SLUG=playstop-indiranagar
+```
 
 ## Module alias
 
@@ -72,6 +96,11 @@ Recorded from `pnpm --filter @playstop/web build`. Budget is 165 kB gzip for the
 |---|---|---|---|
 | after milestone 3 step 4 | 104.19 kB gzip | 8.97 kB gzip | not emitted |
 | same, with `VITE_SENTRY_DSN` set | 104.96 kB gzip | 8.97 kB gzip | 48.97 kB gzip, lazy |
+| all five screens built | 143.78 kB gzip | 11.24 kB gzip | not emitted |
+
+The five screens cost about 39 kB gzip on top of the shell, leaving roughly 21 kB of the
+165 kB budget. That is real headroom but not much: the next thing that crosses the line
+gets a lazy boundary, not a bigger budget.
 
 Sentry is loaded after mount rather than in the entry chunk. It is roughly 48 kB gzipped,
 close to a third of the whole budget, and section 11's itemised budget does not account for
@@ -80,3 +109,15 @@ mount leaves about 60. The trade is that an error thrown during the very first r
 captured.
 
 Fonts are 5 woff2 files, about 92 kB total, cached across routes and not render blocking.
+
+## Tests
+
+```
+pnpm --filter @playstop/web test
+```
+
+Node's built-in runner against compiled output, no Vitest and no DOM library. Needs Node 20
+or newer for `node --test`. The tests compile through `tsconfig.test.json`, which has no
+path aliases, so anything they reach must import by relative path with an explicit `.js`
+extension. That is why `src/routes/*` and `src/components/screen-ui.tsx` avoid the `@/`
+alias and avoid importing `src/components/ui/*`, which does use it.
