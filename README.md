@@ -68,7 +68,9 @@ Render reads `render.yaml` at the repo root. Steps in the Render dashboard:
 1. New, Blueprint, connect this repository. Render finds `render.yaml` automatically and
    proposes the `playstop-api` service, region `singapore`.
 2. Set the `sync: false` environment variables Render prompts for: `WEB_ORIGIN` (the deployed
-   Cloudflare Pages URL), `MONGODB_URI`, `MONGODB_DB` (`playstop`), `REDIS_URL`, `APP_ENV`
+   Cloudflare Pages origin, exact scheme + host, no trailing slash; CORS is an exact-match
+   string. Leave it unset until Pages exists rather than entering an empty string, which fails
+   URL validation at boot), `MONGODB_URI`, `MONGODB_DB` (`playstop`), `REDIS_URL`, `APP_ENV`
    (`prod`).
 3. Deploy. The build command builds `packages/types` and `packages/engine` before `apps/api`,
    since the API imports both packages' compiled output.
@@ -81,10 +83,11 @@ name and scoped credentials, see `docs/milestone-2-spec.md` section 8 for the fu
 reasoning against Docker Compose.
 
 Free tier note: Render's free web services spin down after 15 minutes of no traffic and take a
-cold-start hit on the next request. Point an external 5-minute ping at `/health` (UptimeRobot, or
-a small Cloudflare Worker on a cron trigger) to keep it warm; the same ping keeps the Atlas
-cluster from auto-pausing after 30 idle days. Upgrade path when traffic justifies it: a paid
-Render instance, or move to Fly.io for an always-on box.
+cold-start hit on the next request. A cron-triggered Cloudflare Worker in `deploy/keepalive/`
+pings `/health` every 5 minutes to keep it warm (set `API_URL` in its `wrangler.toml`, then
+`cd deploy/keepalive && wrangler deploy`); the same ping keeps the Atlas cluster from
+auto-pausing after 30 idle days. UptimeRobot is a zero-code alternative. Upgrade path when
+traffic justifies it: a paid Render instance, or move to Fly.io for an always-on box.
 
 ### Web on Cloudflare Pages
 
@@ -94,9 +97,11 @@ this repository with:
 - Build command: `pnpm --filter "@playstop/web..." build`
 - Build output directory: `apps/web/dist`
 - Root directory: `/` (leave as repo root, the build command handles the monorepo path itself)
-- Node version: set the `NODE_VERSION` environment variable to `20`
-- Environment variable: `VITE_API_URL` set to the deployed Render API URL
-  (e.g. `https://playstop-api.onrender.com`)
+- Node version: set the `NODE_VERSION` environment variable to `20.19` (Vite 8 needs >= 20.19)
+- Environment variables (Vite bakes both in at build time, so set them before the build; the
+  app throws on the first API call without them):
+  - `VITE_API_URL` set to the deployed Render API URL (e.g. `https://playstop-api.onrender.com`)
+  - `VITE_VENUE_SLUG` set to the seeded venue slug (`playstop-indiranagar`)
 
 ## Module aliases
 
