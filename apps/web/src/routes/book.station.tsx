@@ -6,7 +6,7 @@
 //
 // Relative .js-extension imports for the same reason as routes/root.tsx:
 // apps/web/tests/router.test.ts imports this file under plain `node --test`.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -36,7 +36,7 @@ import {
   verifyOtp,
 } from "../lib/api.js";
 import { CELL_STATES } from "@playstop/types";
-import { currentBusinessDate } from "../lib/business-date.js";
+import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
 import { countdownState } from "../lib/countdown.js";
 import {
   bookingPriceRupees,
@@ -66,6 +66,7 @@ import {
   SkeletonBox,
   TextField,
   FOCUS_RING,
+  UNDERLINE_LINK,
   riseDelay,
   StepHeading,
   advanceAfterBeat,
@@ -438,11 +439,31 @@ function DetailsScreen({
   const [otpChallenge, setOtpChallenge] = useState<{
     devCode: string | undefined;
     verificationId: string;
-    channel: OtpChannel;
+    contact: OtpContact;
   } | null>(null);
   const pendingDetailsRef = useRef<{ name: string; contact: OtpContact } | null>(null);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpVerifyError, setOtpVerifyError] = useState<string | null>(null);
+  // Refocus after a wrong code, once the render that clears otpVerifying
+  // (and re-enables the input) has actually committed -- calling .focus()
+  // synchronously from the catch block above hit the input while it was
+  // still disabled from the in-flight request, and a disabled input silently
+  // refuses focus.
+  useEffect(() => {
+    if (otpVerifyError) document.getElementById("details-otp-code")?.focus();
+  }, [otpVerifyError]);
+  // Controlled, not defaultValue: React 19 resets a form's uncontrolled
+  // fields once its action function returns, including on the OTP_INVALID
+  // path where the action catches the error and returns normally -- a
+  // controlled value survives that reset instead of vanishing after a typo.
+  const [otpCode, setOtpCode] = useState("");
+  // Stable ref identity so the OTP panel scrolls into view once per mount,
+  // not on every keystroke re-render (a fresh inline arrow re-ran
+  // scrollIntoView each render; block:"nearest" no-ops it but the check is
+  // wasted). Hoisted out of the JSX ternary so the hook is unconditional.
+  const scrollPanelIntoView = useCallback((node: HTMLDivElement | null) => {
+    node?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
   const [confirmState, setConfirmState] = useState<ConfirmState>(INITIAL_CONFIRM_STATE);
   const [confirming, setConfirming] = useState(false);
 
@@ -722,7 +743,8 @@ function DetailsScreen({
       try {
         const otpRes = await requestOtp({ contact });
         setOtpVerifyError(null);
-        setOtpChallenge({ devCode: otpRes.devCode, verificationId: otpRes.verificationId, channel: contact.channel });
+        setOtpCode("");
+        setOtpChallenge({ devCode: otpRes.devCode, verificationId: otpRes.verificationId, contact });
         setConfirmState(INITIAL_CONFIRM_STATE);
       } catch (err) {
         if (err instanceof ApiRequestError && err.code === "HOLD_EXPIRED") {
@@ -805,6 +827,32 @@ function DetailsScreen({
     }
   }
 
+  // "Wrong number?" (booking-guardrails-otp-design.v3 gap): clearing the
+  // challenge alone re-enables the details form (`disabled` already checks
+  // otpChallenge !== null) without releasing the hold the way Back does --
+  // the only other escape from a stuck code panel. Resend is a separate
+  // concern -- ponytail: no resend button yet, re-request via editing the
+  // contact and pressing "Book" again covers it; add a dedicated resend
+  // if support asks for one.
+  function handleWrongNumber() {
+    setOtpChallenge(null);
+    setOtpVerifyError(null);
+    // React resets a form's uncontrolled fields once its action (this
+    // screen's handleDetailsSubmit) resolves -- the same rule the OTP_INVALID
+    // comment above describes, but for the outer details form instead of the
+    // code field. Writing the DOM value back (name/contact are uncontrolled,
+    // no defaultValue re-render would reach an already-mounted input either)
+    // restores what the player already typed instead of a blank form.
+    const details = pendingDetailsRef.current;
+    if (!details) return;
+    const nameInput = document.getElementById("details-name");
+    if (nameInput instanceof HTMLInputElement) nameInput.value = details.name;
+    const contactInput = document.getElementById("details-contact");
+    if (contactInput instanceof HTMLInputElement) {
+      contactInput.value = details.contact.channel === "email" ? details.contact.email : details.contact.phone;
+    }
+  }
+
   function handleStartOver() {
     clearAttempt();
     setAttempt(null);
@@ -825,7 +873,7 @@ function DetailsScreen({
       <p className="font-display text-xl uppercase tracking-wide">{station.name}</p>
       <div className="stub-perf my-3" />
       <p className="text-base">
-        Tonight, {startLabel} to {endLabel}
+        {businessDateLabel(venue, new Date(nowMs), date)}, {startLabel} to {endLabel}
       </p>
       <p className="text-base">
         {hourWord}, <span className="font-mono font-medium">₹{priceRupees}</span>
@@ -871,7 +919,7 @@ function DetailsScreen({
           <button
             type="button"
             onClick={onPickAnotherTime}
-            className={`text-muted-foreground hover:text-foreground self-start text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`}
+            className={`text-muted-foreground hover:text-foreground -my-2.5 self-start ${UNDERLINE_LINK}`}
           >
             Pick another time
           </button>
@@ -982,14 +1030,14 @@ function DetailsScreen({
             <button
               type="submit"
               disabled={confirming}
-              className={`text-muted-foreground hover:text-foreground self-center text-sm underline underline-offset-4 transition-colors disabled:opacity-50 ${FOCUS_RING}`}
+              className={`text-muted-foreground hover:text-foreground -my-2.5 self-center disabled:opacity-50 ${UNDERLINE_LINK}`}
             >
               Try again
             </button>
             <button
               type="button"
               onClick={handleStartOver}
-              className={`text-destructive self-center text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`}
+              className={`text-destructive -my-2.5 self-center ${UNDERLINE_LINK}`}
             >
               Start over
             </button>
@@ -1002,9 +1050,14 @@ function DetailsScreen({
         ) : null}
       </form>
       {otpChallenge ? (
-        <div style={riseDelay(3)} className="anim-rise flex flex-col gap-3">
+        <div
+          style={riseDelay(3)}
+          className="anim-rise flex flex-col gap-3"
+          ref={scrollPanelIntoView}
+        >
           <Notice>
-            We sent a 6-digit code to your {otpChallenge.channel === "email" ? "email" : "phone"}.
+            We sent a 6-digit code to{" "}
+            {otpChallenge.contact.channel === "email" ? otpChallenge.contact.email : otpChallenge.contact.phone}.
             {otpChallenge.devCode ? (
               <>
                 {" "}
@@ -1013,6 +1066,13 @@ function DetailsScreen({
             ) : null}
           </Notice>
           {otpVerifyError ? <Notice tone="destructive">{otpVerifyError}</Notice> : null}
+          <button
+            type="button"
+            onClick={handleWrongNumber}
+            className={`text-muted-foreground hover:text-foreground -my-2.5 self-start ${UNDERLINE_LINK}`}
+          >
+            Wrong number?
+          </button>
           <form action={(formData: FormData) => void handleVerifySubmit(formData)} className="flex flex-col gap-3">
             <TextField
               id="details-otp-code"
@@ -1025,6 +1085,9 @@ function DetailsScreen({
               placeholder="123456"
               required
               disabled={otpVerifying}
+              autoFocus
+              value={otpCode}
+              onChange={(event) => setOtpCode(event.target.value)}
             />
             <button
               type="submit"
@@ -1191,7 +1254,7 @@ function BookStationScreen() {
         <button
           type="button"
           onClick={onBackToTime}
-          className={`text-muted-foreground hover:text-foreground self-start text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`}
+          className={`text-muted-foreground hover:text-foreground -my-2.5 self-start ${UNDERLINE_LINK}`}
         >
           Pick another time
         </button>

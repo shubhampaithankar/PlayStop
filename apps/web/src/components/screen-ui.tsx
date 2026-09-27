@@ -35,6 +35,13 @@ export function SkeletonBox({ className }: { className: string }) {
 export const FOCUS_RING =
   "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-transparent";
 
+// Shared underline-link tap-target stanza (DESIGN.md 44px min hit area):
+// underline + focus ring + 44px min height. Compose per site with colour,
+// alignment, and the negative-margin trick that grows the hit area without
+// changing the visual size. Extracted after the tap-target sweep hand-copied
+// it across five buttons and missed one.
+export const UNDERLINE_LINK = `flex min-h-11 items-center text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`;
+
 /* Entrance stagger (DESIGN.md motion): child N rises 35ms later, capped at 9. */
 export const riseDelay = (index: number): CSSProperties =>
   ({ "--rise-delay": `${Math.min(index, 8) * 35}ms` }) as CSSProperties;
@@ -54,7 +61,7 @@ export function StepHeading({
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground hover:text-foreground self-start text-sm underline underline-offset-4 transition-colors"
+          className={`text-muted-foreground hover:text-foreground -m-2.5 self-start p-2.5 ${UNDERLINE_LINK}`}
         >
           Back
         </button>
@@ -133,7 +140,7 @@ export function ConfirmDialog({
           </div>
           <div className="-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end">
             <DialogPrimitive.Close
-              className={`border-border bg-background hover:bg-muted rounded-lg border px-3 py-1.5 text-sm ${FOCUS_RING}`}
+              className={`border-border bg-background hover:bg-muted flex h-11 items-center justify-center rounded-lg border px-3 text-sm ${FOCUS_RING}`}
             >
               Never mind
             </DialogPrimitive.Close>
@@ -141,7 +148,7 @@ export function ConfirmDialog({
               type="button"
               disabled={confirming}
               onClick={onConfirm}
-              className={`bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${FOCUS_RING}`}
+              className={`bg-destructive/10 text-destructive hover:bg-destructive/20 flex h-11 items-center justify-center rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${FOCUS_RING}`}
             >
               {confirming ? "Cancelling..." : confirmLabel}
             </button>

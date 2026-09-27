@@ -54,7 +54,11 @@
   --primary-foreground: #ffffff;
   --secondary: var(--color-paper);
   --secondary-foreground: var(--color-ink);
-  --muted: var(--color-paper);
+  /* Not --color-paper: that's the page bg itself, so a skeleton or a
+     hover:bg-muted (theme toggle, dialog "Never mind") painted no visible
+     fill against it. --edge-soft (defined below in this same :root) is
+     already the light theme's "raised but quiet" surface token. */
+  --muted: var(--edge-soft);
   --muted-foreground: var(--color-slate-mut);
   --accent: var(--color-paper);
   --accent-foreground: var(--color-ink);

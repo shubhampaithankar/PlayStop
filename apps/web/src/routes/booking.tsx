@@ -15,6 +15,7 @@ import { rootRoute } from "./root.js";
 import { bookingOptions, keys, venueOptions, invalidateAvailability } from "../lib/query-client.js";
 import { ApiRequestError, cancelBooking, errorPresentation } from "../lib/api.js";
 import { instantLabel } from "../lib/stations.js";
+import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
 import { SkeletonBox, ConfirmDialog, FOCUS_RING } from "../components/screen-ui.js";
 
 // .catch(undefined) rather than a bare .optional(): validateSearch throwing
@@ -96,6 +97,11 @@ function BookedScreen() {
 
   const startLabel = instantLabel(booking.startsAt, venue.timezone);
   const endLabel = instantLabel(booking.endsAt, venue.timezone);
+  // The date the booking's own session falls on, not "now" -- the same
+  // yesterday-crosses-midnight logic currentBusinessDate uses for "which
+  // session is running", applied to the booking's start instant instead.
+  const bookingDate = currentBusinessDate(venue, new Date(booking.startsAt));
+  const dateLabel = businessDateLabel(venue, new Date(nowMs), bookingDate);
   const totalRupees = booking.totalMinor / 100;
   const cancelled = booking.status === "cancelled";
   const started = Date.parse(booking.startsAt) <= nowMs;
@@ -159,7 +165,10 @@ function BookedScreen() {
         >
           <code
             ref={codeRef}
-            className={`font-mono text-[clamp(2rem,11vw,3.75rem)] font-medium tracking-wide ${cancelled ? "text-muted-foreground line-through" : ""}`}
+            // ponytail: fixed clamp ceiling (3.25rem, tracking normal) fits a
+            // worst-case 11-char code in the 352px stub content box at any
+            // viewport, cheaper than a container query for a fixed-width column.
+            className={`font-mono text-[clamp(2rem,11vw,3.25rem)] font-medium ${cancelled ? "text-muted-foreground line-through" : ""}`}
           >
             {booking.confirmationCode}
           </code>
@@ -169,7 +178,7 @@ function BookedScreen() {
         </button>
         <div className="stub-perf my-4" />
         <p className="text-muted-foreground text-sm">
-          {booking.stationName}, tonight {startLabel} to {endLabel}.
+          {booking.stationName}, {dateLabel}, {startLabel} to {endLabel}.
         </p>
       </div>
       {cancelled ? null : <p className="text-base font-semibold">Show this code at the counter.</p>}
@@ -187,7 +196,7 @@ function BookedScreen() {
         <button
           type="button"
           onClick={() => setCancelOpen(true)}
-          className={`pressable text-stop-red dark:text-stop-red-bright rounded-(--radius) border px-4 py-2 text-sm ${FOCUS_RING}`}
+          className={`pressable text-stop-red dark:text-stop-red-bright flex h-11 items-center justify-center rounded-(--radius) border px-4 text-sm ${FOCUS_RING}`}
         >
           Cancel this booking
         </button>

@@ -63,6 +63,24 @@ function dateChipLabel(offsetDays: number, yyyyMmDd: string): string {
   return `${weekday} ${day}`;
 }
 
+/** Label for a single business date, using the same word ladder
+ *  businessDateStrip's chips use (Today/Tomorrow/weekday+day) but with
+ *  "Tonight" wherever the strip would say "Today" -- the booking flow's
+ *  prose (DESIGN.md's ticket stub, "Tonight, 8:30 pm to 10:30 pm") says
+ *  Tonight, not Today, for the current business date. */
+export function businessDateLabel(
+  venue: Pick<VenueResponse, "timezone" | "openingHours">,
+  now: Date,
+  date: string,
+): string {
+  const today = currentBusinessDate(venue, now);
+  const offsetDays = Math.round(
+    (new Date(`${date}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86_400_000,
+  );
+  const label = dateChipLabel(offsetDays, date);
+  return label === "Today" ? "Tonight" : label;
+}
+
 export interface BusinessDateChip {
   readonly date: string; // "YYYY-MM-DD"
   readonly label: string; // "Today" | "Tomorrow" | "Mon 29"

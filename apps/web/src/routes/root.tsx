@@ -52,7 +52,7 @@ function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className={`text-muted-foreground hover:bg-muted hover:text-foreground ml-auto flex size-9 items-center justify-center rounded-(--radius) transition-colors ${FOCUS_RING}`}
+      className={`text-muted-foreground hover:bg-muted hover:text-foreground ml-auto flex size-11 items-center justify-center rounded-(--radius) transition-colors ${FOCUS_RING}`}
     >
       {isDark ? <Sun aria-hidden="true" className="size-4.5" /> : <Moon aria-hidden="true" className="size-4.5" />}
     </button>
