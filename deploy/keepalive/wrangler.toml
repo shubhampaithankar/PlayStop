@@ -1,0 +1,11 @@
+name = "playstop-keepalive"
+main = "src/index.js"
+compatibility_date = "2026-09-27"
+
+# Cron-only Worker: fires on the schedule, needs no route or domain.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Set to the deployed Render API URL after the API is live.
+[vars]
+API_URL = "https://playstop-api.onrender.com"
