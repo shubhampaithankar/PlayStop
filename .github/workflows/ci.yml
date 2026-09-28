@@ -45,6 +45,10 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Build in dependency order first: packages/types has no test script, so
+      # `pnpm -r run test` never builds its dist and engine's test (tsc) cannot
+      # resolve @playstop/types. The build job already does this; the test job must too.
+      - run: pnpm build
       - name: Start MongoDB replica set
         uses: supercharge/mongodb-github-action@1.12.1
         with:
