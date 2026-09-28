@@ -34,4 +34,11 @@ export default tseslint.config(
       globals: { process: "readonly", console: "readonly", setTimeout: "readonly" },
     },
   },
+  {
+    // Cloudflare Worker runtime globals (deploy/keepalive is a cron Worker).
+    files: ["deploy/keepalive/**/*.js"],
+    languageOptions: {
+      globals: { fetch: "readonly", URL: "readonly" },
+    },
+  },
 );
