@@ -8,7 +8,7 @@
 // transitively imports app.js, which constructs the module-level ioredis
 // client as an import-time side effect; a static import would open that
 // connection even when skip:true means the callback body -- and the
-// closeTestResources() at its end -- never runs, leaving the child process
+// teardown() at its end -- never runs, leaving the child process
 // alive forever on a developer machine running plain `pnpm test`.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -16,15 +16,16 @@ import { test } from "node:test";
 
 const CI_ONLY = process.env.TEST_PROFILE === "ci";
 
-// Test A alone fires 50 requests x 20 rounds at one venue, all sharing one
-// rate-limit bucket (keyed by venueId:ip) inside the same fixed 60s window;
-// the real limit of 30 would reject most of them before booking logic ever
-// runs. Set at module scope, before either test's dynamic import() of the
+// Test A fires 50 racers x 3 requests (2 OTP calls + 1 booking) x 20 rounds
+// at one venue = 3000 hits on one rate-limit bucket (keyed by venueId:ip) in
+// the same fixed 60s window; the real limit of 30 would reject most of them
+// before booking logic runs, and the pre-OTP 2000 cap no longer covers it.
+// Set at module scope, before either test's dynamic import() of the
 // app modules, same ordering requirement as REDIS_URL in
 // concurrency-redis-down.test.ts: env.ts reads process.env once, at import
 // time. Overridden only in this process, never in production or the
 // default `pnpm test` run.
-process.env.RATE_LIMIT_MAX_REQUESTS = "2000";
+process.env.RATE_LIMIT_MAX_REQUESTS = "4000";
 
 interface Classified {
   readonly status: number;

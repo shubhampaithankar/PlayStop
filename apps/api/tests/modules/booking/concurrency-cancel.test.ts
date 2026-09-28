@@ -7,7 +7,7 @@
 // transitively imports app.js, which constructs the module-level ioredis
 // client as an import-time side effect; a static import would open that
 // connection even when skip:true means the callback body -- and the
-// closeTestResources() at its end -- never runs, leaving the child process
+// teardown() at its end -- never runs, leaving the child process
 // alive forever on a developer machine running plain `pnpm test`.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

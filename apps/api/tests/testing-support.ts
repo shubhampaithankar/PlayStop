@@ -7,7 +7,7 @@ import type { Express } from "express";
 import { DateTime } from "luxon";
 import { ObjectId } from "mongodb";
 import { generateSlotGrid, type VenueSchedule } from "@playstop/engine";
-import { collections, connectMongo, mongoClient, type OpeningHours, type StationDoc } from "#libs/mongo/index.js";
+import { collections, connectMongo, type OpeningHours, type StationDoc } from "#libs/mongo/index.js";
 import { createIndexes } from "#libs/mongo/indexes.js";
 import { env } from "#env.js";
 import { redis, waitForRedisReady } from "#libs/redis/index.js";
@@ -255,25 +255,15 @@ export async function startTestServer(): Promise<TestServer> {
   };
 }
 
-// node --test keeps a file alive until its event loop drains. The Mongo
-// connection pool and the ioredis socket are both module-level and
-// long-lived, so without this a fully green test file still hangs until the
-// runner's timeout fires and reports a false failure. Call once per file,
-// after the last assertion.
-export async function closeTestResources(): Promise<void> {
-  mongoReady = undefined;
-  await mongoClient().close();
-  redis.disconnect();
-}
-
-// Every test file's outer try/finally calls this. venue and server are
-// optional because setup can throw before either is assigned -- reading
-// .venueId or .close() off that unassigned value in a plain finally block
-// throws a TypeError that masks the real setup error, and skips
-// closeTestResources(), which is what stops the file hanging on a dangling
-// ioredis client. Each step is isolated so one failing step (including a
-// setup failure itself) never blocks the others, and closeTestResources()
-// always runs last regardless of what happened above it.
+// Every test file's outer try/finally calls this per test. venue and
+// server are optional because setup can throw before either is assigned --
+// reading .venueId or .close() off that unassigned value in a plain finally
+// block throws a TypeError that masks the real setup error. Each step is
+// isolated so one failing step never blocks the others. The module-level
+// Mongo pool and ioredis client are deliberately NOT closed here: they are
+// reused across every test in the file, and --test-force-exit (see apps/api
+// package.json) tears the process down at the end, so a dangling socket
+// cannot hang the run.
 export async function teardown(
   venue: Pick<TestVenue, "venueId"> | undefined,
   server: Pick<TestServer, "close"> | undefined,
@@ -291,10 +281,5 @@ export async function teardown(
     } catch (err) {
       console.warn("teardown: server.close failed", err);
     }
-  }
-  try {
-    await closeTestResources();
-  } catch (err) {
-    console.warn("teardown: closeTestResources failed", err);
   }
 }
