@@ -22,6 +22,16 @@ test("phone transform strips a bare 91 country-code prefix", () => {
   assert.deepEqual(parsed.contact, { channel: "sms", phone: "9876543210" });
 });
 
+test("phone tolerates spaces inside the number", () => {
+  const parsed = otpRequestSchema.parse({ contact: { channel: "sms", phone: "98765 43210" } });
+  assert.deepEqual(parsed.contact, { channel: "sms", phone: "9876543210" });
+});
+
+test("phone tolerates hyphens and a +91 prefix together", () => {
+  const parsed = otpRequestSchema.parse({ contact: { channel: "sms", phone: "+91 98765-43210" } });
+  assert.deepEqual(parsed.contact, { channel: "sms", phone: "9876543210" });
+});
+
 test("a contact missing its channel's own field is rejected", () => {
   assert.throws(() => otpRequestSchema.parse({ contact: { channel: "email", phone: "9876543210" } }));
 });

@@ -8,6 +8,10 @@
 // apps/web/tests/router.test.ts imports this file under plain `node --test`.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
+// The Radix primitive directly, not components/ui/toggle-group.tsx: that shadcn
+// file imports "@/lib/utils", which plain `node --test` (router.test.ts loads
+// this route) cannot resolve. Same primitive, classes inlined below.
+import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { createBookingRequestSchema, otpContactSchema } from "@playstop/engine";
@@ -37,7 +41,7 @@ import {
 } from "../lib/api.js";
 import { CELL_STATES } from "@playstop/types";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
-import { countdownState } from "../lib/countdown.js";
+import { countdownState, formatCountdown } from "../lib/countdown.js";
 import {
   bookingPriceRupees,
   cellsByStation,
@@ -89,6 +93,70 @@ function ErrorNotice({ error }: { error: unknown }) {
     error instanceof ApiRequestError ? errorPresentation[error.code].detail : "Something went wrong. Please try again.";
   return <Notice tone="destructive">{message}</Notice>;
 }
+
+// Field error line: the id is what the input's aria-describedby points at.
+function FieldError({ id, message }: { id: string; message: string | undefined }) {
+  return message ? (
+    <p id={id} role="alert" className="text-destructive text-sm">
+      {message}
+    </p>
+  ) : null;
+}
+
+// One bordered box (TextField's input classes) holding a fixed "+91" segment
+// and the number input. ponytail: India-only, so no country picker or phone
+// library; add libphonenumber-js if the lounge ever takes other countries.
+function PhoneField({
+  id,
+  label,
+  value,
+  onValueChange,
+  disabled,
+  invalid,
+  describedBy,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled: boolean;
+  invalid: boolean;
+  describedBy: string | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="flex items-center gap-2 text-sm leading-none font-medium select-none">
+        {label}
+      </label>
+      <div className="border-input focus-within:border-ring focus-within:ring-ring/50 has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:ring-destructive/20 flex h-11 w-full items-center rounded-lg border bg-transparent transition-colors focus-within:ring-3 has-[input[aria-invalid=true]]:ring-3 has-[input:disabled]:opacity-50">
+        <span aria-hidden="true" className="border-input text-muted-foreground flex h-full items-center border-r px-2.5 font-mono text-base">
+          +91
+        </span>
+        <input
+          id={id}
+          name="contact"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          // No maxLength: the browser would truncate a pasted "+91 98765 43210" to its
+          // first 10 characters before onChange runs; the slice below is the cap.
+          pattern="[6-9][0-9]{9}"
+          placeholder="9876543210"
+          required
+          disabled={disabled}
+          value={value}
+          // Digits only, then the last 10: a pasted "+91 98765 43210" survives.
+          onChange={(event) => onValueChange(event.target.value.replace(/\D/g, "").slice(-10))}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
+          className="placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent px-2.5 py-1 text-base outline-none disabled:cursor-not-allowed"
+        />
+      </div>
+    </div>
+  );
+}
+
+const OTP_RESEND_COOLDOWN_MS = 30_000;
 
 function PageShell({ children }: { children: ReactNode }) {
   return <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-8 md:px-6">{children}</main>;
@@ -360,6 +428,13 @@ function DetailsScreen({
   // body already committed to one channel, so reopening this screen keeps
   // it selected rather than defaulting back to sms.
   const [channel, setChannel] = useState<OtpChannel>(() => (attempt?.submitted?.player.email ? "email" : "sms"));
+  // Controlled, one value per channel: toggling Email/SMS keeps what was
+  // typed in the other, and returning from the code panel restores the form.
+  const [nameValue, setNameValue] = useState(() => attempt?.submitted?.player.name ?? "");
+  const [emailValue, setEmailValue] = useState(() => attempt?.submitted?.player.email ?? "");
+  const [phoneValue, setPhoneValue] = useState(() => attempt?.submitted?.player.phone ?? "");
+  // When the next code may be requested (ms epoch); compared to nowMs.
+  const [resendAtMs, setResendAtMs] = useState(0);
   // Timer id of a release scheduled by an effect teardown, so a StrictMode
   // remount can cancel it before it fires. Survives the remount because a
   // ref belongs to the component instance, which StrictMode reuses.
@@ -691,7 +766,37 @@ function DetailsScreen({
   // hold or not. A retry (current.submitted already frozen with a real,
   // still-unconsumed verificationId -- SLOT_TAKEN doesn't consume it, only
   // a committed confirm does) skips straight back to doConfirm.
-  async function handleDetailsSubmit(formData: FormData) {
+  // Requests a code and swaps the code panel in (first send and resend).
+  async function issueCode(contact: OtpContact): Promise<void> {
+    const otpRes = await requestOtp({ contact });
+    setOtpVerifyError(null);
+    setOtpCode("");
+    setOtpChallenge({ devCode: otpRes.devCode, verificationId: otpRes.verificationId, contact });
+    setResendAtMs(Date.now() + OTP_RESEND_COOLDOWN_MS);
+    setLiveMessage("Code sent");
+  }
+
+  async function handleResend() {
+    const details = pendingDetailsRef.current;
+    if (!details) return;
+    setConfirming(true);
+    try {
+      await issueCode(details.contact);
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === "HOLD_EXPIRED") {
+        setOtpChallenge(null);
+        setServerExpired(true);
+      } else if (err instanceof ApiRequestError) {
+        setOtpVerifyError(err.message || errorPresentation[err.code].detail);
+      } else {
+        setOtpVerifyError("Could not reach the server. Check your connection.");
+      }
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleDetailsSubmit() {
     setConfirming(true);
     try {
       const current = attemptRef.current;
@@ -707,9 +812,9 @@ function DetailsScreen({
         return;
       }
 
-      const name = String(formData.get("name") ?? "").trim();
-      const contactChannel: OtpChannel = formData.get("channel") === "email" ? "email" : "sms";
-      const rawContact = String(formData.get("contact") ?? "").trim();
+      const name = nameValue.trim();
+      const contactChannel: OtpChannel = channel;
+      const rawContact = (channel === "email" ? emailValue : phoneValue).trim();
       // Reuses the server's own contact schema (packages/engine/contracts/otp)
       // rather than a hand-rolled regex: same India-phone pattern, same
       // email shape, same normalization (lowercased email, last-10-digit
@@ -720,7 +825,7 @@ function DetailsScreen({
       );
       if (!contactParse.success) {
         const message =
-          contactChannel === "email" ? "Enter a valid email address." : "Enter a 10-digit Indian mobile number, starting 6-9.";
+          contactChannel === "email" ? "Enter a valid email address." : "Enter the 10 digits after +91.";
         setConfirmState({ fieldErrors: { contact: message }, panelError: null });
         return;
       }
@@ -741,10 +846,7 @@ function DetailsScreen({
       pendingDetailsRef.current = { name, contact };
 
       try {
-        const otpRes = await requestOtp({ contact });
-        setOtpVerifyError(null);
-        setOtpCode("");
-        setOtpChallenge({ devCode: otpRes.devCode, verificationId: otpRes.verificationId, contact });
+        await issueCode(contact);
         setConfirmState(INITIAL_CONFIRM_STATE);
       } catch (err) {
         if (err instanceof ApiRequestError && err.code === "HOLD_EXPIRED") {
@@ -774,11 +876,11 @@ function DetailsScreen({
   // The code-entry submit. On a verified code, builds the real body (now
   // that a verified verificationId exists), freezes it, and hands off to
   // doConfirm.
-  async function handleVerifySubmit(formData: FormData) {
+  async function handleVerifySubmit() {
     const current = attemptRef.current;
     const details = pendingDetailsRef.current;
     if (!current || !otpChallenge || !details) return;
-    const code = String(formData.get("code") ?? "").trim();
+    const code = otpCode.trim();
     setOtpVerifying(true);
     setOtpVerifyError(null);
     try {
@@ -827,30 +929,13 @@ function DetailsScreen({
     }
   }
 
-  // "Wrong number?" (booking-guardrails-otp-design.v3 gap): clearing the
-  // challenge alone re-enables the details form (`disabled` already checks
-  // otpChallenge !== null) without releasing the hold the way Back does --
-  // the only other escape from a stuck code panel. Resend is a separate
-  // concern -- ponytail: no resend button yet, re-request via editing the
-  // contact and pressing "Book" again covers it; add a dedicated resend
-  // if support asks for one.
-  function handleWrongNumber() {
+  // "Change" on the code panel (booking-guardrails-otp-design.v3 gap): drops
+  // the challenge and shows the form again, without releasing the hold the
+  // way Back does. The form fields are controlled state, so what the player
+  // typed is still there.
+  function handleChangeContact() {
     setOtpChallenge(null);
     setOtpVerifyError(null);
-    // React resets a form's uncontrolled fields once its action (this
-    // screen's handleDetailsSubmit) resolves -- the same rule the OTP_INVALID
-    // comment above describes, but for the outer details form instead of the
-    // code field. Writing the DOM value back (name/contact are uncontrolled,
-    // no defaultValue re-render would reach an already-mounted input either)
-    // restores what the player already typed instead of a blank form.
-    const details = pendingDetailsRef.current;
-    if (!details) return;
-    const nameInput = document.getElementById("details-name");
-    if (nameInput instanceof HTMLInputElement) nameInput.value = details.name;
-    const contactInput = document.getElementById("details-contact");
-    if (contactInput instanceof HTMLInputElement) {
-      contactInput.value = details.contact.channel === "email" ? details.contact.email : details.contact.phone;
-    }
   }
 
   function handleStartOver() {
@@ -928,8 +1013,28 @@ function DetailsScreen({
     );
   }
 
-  // reloadCase.kind is "resume" or "degraded" here: the full form.
-  const disabled = confirming || otpVerifying || otpChallenge !== null || (attempt?.outcomeUnknown ?? false);
+  // reloadCase.kind is "resume" or "degraded" here: the details form, or the
+  // code panel in its place once a code has been sent.
+  const disabled = confirming || otpVerifying || (attempt?.outcomeUnknown ?? false);
+  const nameErrorId = "details-name-error";
+  const contactErrorId = "details-contact-error";
+  function clearFieldError(field: "name" | "contact") {
+    setConfirmState((state) =>
+      state.fieldErrors[field] ? { ...state, fieldErrors: { ...state.fieldErrors, [field]: undefined } } : state,
+    );
+  }
+  const resendMs = Math.max(0, resendAtMs - nowMs);
+  const otpContactLabel = otpChallenge
+    ? otpChallenge.contact.channel === "email"
+      ? otpChallenge.contact.email
+      : `+91 ${otpChallenge.contact.phone}`
+    : "";
+  const holdCountdownLine = countdown ? (
+    <p className={`text-center text-sm ${countdown.urgent ? "text-destructive" : "text-muted-foreground"}`}>
+      {countdown.urgent ? "Hurry, this" : "This"} spot is yours for the next{" "}
+      <span className="font-mono">{countdown.label}</span>
+    </p>
+  ) : null;
   return (
     <PageShell>
       <StepHeading step="Step 4 of 4" title="Your details" onBack={onBackToLength} />
@@ -944,151 +1049,52 @@ function DetailsScreen({
         </Notice>
       ) : null}
       {confirmState.panelError ? <Notice tone="destructive">{confirmState.panelError}</Notice> : null}
-      <form action={(formData: FormData) => void handleDetailsSubmit(formData)} style={riseDelay(2)} className="anim-rise flex flex-col gap-3">
-        <TextField
-          id="details-name"
-          label="Name"
-          name="name"
-          placeholder="Your name"
-          required
-          disabled={disabled}
-          defaultValue={attempt?.submitted?.player.name}
-          aria-invalid={confirmState.fieldErrors.name ? true : undefined}
-        />
-        {confirmState.fieldErrors.name ? <p className="text-destructive text-sm">{confirmState.fieldErrors.name}</p> : null}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm leading-none font-medium">Contact</span>
-          <div role="group" aria-label="Contact method" className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              aria-pressed={channel === "email"}
-              disabled={disabled}
-              onClick={() => setChannel("email")}
-              className={
-                channel === "email"
-                  ? `pressable tile-on h-11 text-sm font-semibold ${FOCUS_RING}`
-                  : `pressable tile lift h-11 text-sm ${FOCUS_RING}`
-              }
-            >
-              Email
-            </button>
-            <button
-              type="button"
-              aria-pressed={channel === "sms"}
-              disabled={disabled}
-              onClick={() => setChannel("sms")}
-              className={
-                channel === "sms"
-                  ? `pressable tile-on h-11 text-sm font-semibold ${FOCUS_RING}`
-                  : `pressable tile lift h-11 text-sm ${FOCUS_RING}`
-              }
-            >
-              SMS
-            </button>
-          </div>
-        </div>
-        <input type="hidden" name="channel" value={channel} />
-        {channel === "email" ? (
-          <TextField
-            id="details-contact"
-            label="Email"
-            name="contact"
-            type="email"
-            inputMode="email"
-            placeholder="you@example.com"
-            required
-            disabled={disabled}
-            defaultValue={attempt?.submitted?.player.email}
-            aria-invalid={confirmState.fieldErrors.contact ? true : undefined}
-          />
-        ) : (
-          <TextField
-            id="details-contact"
-            label="Phone"
-            name="contact"
-            type="tel"
-            inputMode="tel"
-            placeholder="98765 43210"
-            required
-            disabled={disabled}
-            defaultValue={attempt?.submitted?.player.phone}
-            aria-invalid={confirmState.fieldErrors.contact ? true : undefined}
-          />
-        )}
-        {confirmState.fieldErrors.contact ? <p className="text-destructive text-sm">{confirmState.fieldErrors.contact}</p> : null}
-        {otpChallenge ? null : (
-          <button
-            type="submit"
-            disabled={disabled}
-            className={`pressable btn-go mt-2 h-12 rounded-(--radius) text-base font-semibold disabled:opacity-50 ${FOCUS_RING}`}
-          >
-            {confirming ? "Booking…" : `Book for ₹${priceRupees}`}
-          </button>
-        )}
-        {attempt?.outcomeUnknown ? (
-          <div className="flex flex-col gap-2">
-            <button
-              type="submit"
-              disabled={confirming}
-              className={`text-muted-foreground hover:text-foreground -my-2.5 self-center disabled:opacity-50 ${UNDERLINE_LINK}`}
-            >
-              Try again
-            </button>
-            <button
-              type="button"
-              onClick={handleStartOver}
-              className={`text-destructive -my-2.5 self-center ${UNDERLINE_LINK}`}
-            >
-              Start over
-            </button>
-          </div>
-        ) : countdown ? (
-          <p className={`text-center text-sm ${countdown.urgent ? "text-destructive" : "text-muted-foreground"}`}>
-            {countdown.urgent ? "Hurry, this" : "This"} spot is yours for the next{" "}
-            <span className="font-mono">{countdown.label}</span>
-          </p>
-        ) : null}
-      </form>
       {otpChallenge ? (
-        <div
-          style={riseDelay(3)}
-          className="anim-rise flex flex-col gap-3"
-          ref={scrollPanelIntoView}
-        >
-          <Notice>
-            We sent a 6-digit code to{" "}
-            {otpChallenge.contact.channel === "email" ? otpChallenge.contact.email : otpChallenge.contact.phone}.
-            {otpChallenge.devCode ? (
-              <>
-                {" "}
-                Mock code, dev only: <span className="font-mono font-semibold">{otpChallenge.devCode}</span>
-              </>
-            ) : null}
-          </Notice>
+        <div style={riseDelay(2)} className="anim-rise flex flex-col gap-3" ref={scrollPanelIntoView}>
+          <div className="flex flex-wrap items-center gap-x-2 text-sm">
+            <span>
+              Code sent to <span className="font-medium">{otpContactLabel}</span>
+            </span>
+            <span aria-hidden="true" className="text-muted-foreground">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={handleChangeContact}
+              aria-label={otpChallenge.contact.channel === "sms" ? "Change number" : "Change email address"}
+              className={`text-muted-foreground hover:text-foreground -my-2.5 ${UNDERLINE_LINK}`}
+            >
+              Change
+            </button>
+          </div>
+          {otpChallenge.devCode ? (
+            <Notice>
+              Mock code, dev only: <span className="font-mono font-semibold">{otpChallenge.devCode}</span>
+            </Notice>
+          ) : null}
           {otpVerifyError ? <Notice tone="destructive">{otpVerifyError}</Notice> : null}
-          <button
-            type="button"
-            onClick={handleWrongNumber}
-            className={`text-muted-foreground hover:text-foreground -my-2.5 self-start ${UNDERLINE_LINK}`}
-          >
-            Wrong number?
-          </button>
-          <form action={(formData: FormData) => void handleVerifySubmit(formData)} className="flex flex-col gap-3">
-            <TextField
-              id="details-otp-code"
-              label="Code"
-              name="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              placeholder="123456"
-              required
-              disabled={otpVerifying}
-              autoFocus
-              value={otpCode}
-              onChange={(event) => setOtpCode(event.target.value)}
-            />
+          {/* Explicit button, no auto-submit on the 6th digit: this commits the booking. */}
+          <form action={() => void handleVerifySubmit()} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="details-otp-code" className="flex items-center gap-2 text-sm leading-none font-medium select-none">
+                Code
+              </label>
+              <input
+                id="details-otp-code"
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                required
+                disabled={otpVerifying}
+                autoFocus
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
+                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-12 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-center font-mono text-xl tracking-[0.3em] tabular-nums outline-none transition-colors focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
             <button
               type="submit"
               disabled={otpVerifying}
@@ -1097,8 +1103,130 @@ function DetailsScreen({
               {otpVerifying ? "Verifying…" : "Verify and book"}
             </button>
           </form>
+          {resendMs > 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Send a new code in <span className="font-mono">{formatCountdown(Math.ceil(resendMs / 1000) * 1000)}</span>
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={confirming || otpVerifying}
+              onClick={() => void handleResend()}
+              className={`text-muted-foreground hover:text-foreground -my-2.5 self-start disabled:opacity-50 ${UNDERLINE_LINK}`}
+            >
+              Send a new code
+            </button>
+          )}
+          {holdCountdownLine}
         </div>
-      ) : null}
+      ) : (
+        <form
+          action={() => void handleDetailsSubmit()}
+          style={riseDelay(2)}
+          className="anim-rise flex flex-col gap-3"
+        >
+          <TextField
+            id="details-name"
+            label="Name"
+            name="name"
+            placeholder="Your name"
+            maxLength={80}
+            required
+            disabled={disabled}
+            value={nameValue}
+            onChange={(event) => {
+              setNameValue(event.target.value);
+              clearFieldError("name");
+            }}
+            aria-invalid={confirmState.fieldErrors.name ? true : undefined}
+            aria-describedby={confirmState.fieldErrors.name ? nameErrorId : undefined}
+          />
+          <FieldError id={nameErrorId} message={confirmState.fieldErrors.name} />
+          <ToggleGroupPrimitive.Root
+            type="single"
+            value={channel}
+            onValueChange={(next) => {
+              // Radix emits "" when the pressed item is pressed again; a channel is always required.
+              if (next !== "email" && next !== "sms") return;
+              setChannel(next);
+              clearFieldError("contact");
+            }}
+            disabled={disabled}
+            aria-label="How should we send your code?"
+            className="grid grid-cols-2 gap-2.5"
+          >
+            {(["sms", "email"] as const).map((option) => (
+              <ToggleGroupPrimitive.Item
+                key={option}
+                value={option}
+                className={`border-input hover:bg-muted data-[state=on]:bg-muted data-[state=on]:text-foreground flex h-11 items-center justify-center rounded-(--radius) border bg-transparent text-sm transition-colors data-[state=on]:font-semibold disabled:opacity-50 ${FOCUS_RING}`}
+              >
+                {option === "sms" ? "SMS" : "Email"}
+              </ToggleGroupPrimitive.Item>
+            ))}
+          </ToggleGroupPrimitive.Root>
+          {channel === "email" ? (
+            <TextField
+              id="details-contact"
+              label="Email"
+              name="contact"
+              type="email"
+              inputMode="email"
+              placeholder="you@example.com"
+              required
+              disabled={disabled}
+              value={emailValue}
+              onChange={(event) => {
+                setEmailValue(event.target.value);
+                clearFieldError("contact");
+              }}
+              aria-invalid={confirmState.fieldErrors.contact ? true : undefined}
+              aria-describedby={confirmState.fieldErrors.contact ? contactErrorId : undefined}
+            />
+          ) : (
+            <PhoneField
+              id="details-contact"
+              label="Mobile number"
+              value={phoneValue}
+              onValueChange={(value) => {
+                setPhoneValue(value);
+                clearFieldError("contact");
+              }}
+              disabled={disabled}
+              invalid={Boolean(confirmState.fieldErrors.contact)}
+              describedBy={confirmState.fieldErrors.contact ? contactErrorId : undefined}
+            />
+          )}
+          <FieldError id={contactErrorId} message={confirmState.fieldErrors.contact} />
+          <button
+            type="submit"
+            disabled={disabled}
+            className={`pressable btn-go mt-2 h-12 rounded-(--radius) text-base font-semibold disabled:opacity-50 ${FOCUS_RING}`}
+          >
+            {confirming ? "Booking…" : `Book for ₹${priceRupees}`}
+          </button>
+          {attempt?.outcomeUnknown ? (
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                disabled={confirming}
+                className={`text-muted-foreground hover:text-foreground -my-2.5 self-center disabled:opacity-50 ${UNDERLINE_LINK}`}
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                className={`text-destructive -my-2.5 self-center ${UNDERLINE_LINK}`}
+              >
+                Start over
+              </button>
+            </div>
+          ) : (
+            holdCountdownLine
+          )}
+        </form>
+      )}
     </PageShell>
   );
 }

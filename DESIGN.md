@@ -181,8 +181,21 @@ Tapping a length advances. Selected buttons here and on the time screen fill go 
 ### 4. Your details
 
 Recap card in plain sentences, built as the ticket stub (see Imagery), unissued: console
-name, then the tear, then "Tonight, 8:30 pm to 10:30 pm", "2 hours, ₹600". Below: Name,
-Phone (both required), one full-width green button "Book for ₹600", and one muted line:
+name, then the tear, then "Tonight, 8:30 pm to 10:30 pm", "2 hours, ₹600". Below: Name, then
+a two-item segmented control "SMS | Email" (SMS default, aria-label "How should we send your
+code?"; the selected item is muted grey with a semibold label, never green, because green
+means "go" and a mode is not an advance), then one contact field for the chosen channel:
+"Mobile number" (a fixed mono "+91" segment inside the same bordered box, 10 digits, pasted
+"+91 98765 43210" is cleaned to digits) or "Email". Both required. Toggling keeps what was
+typed for the other channel. Field errors sit under the field with `role="alert"` and clear
+on the next keystroke. One full-width green button "Book for ₹600" sends a code and replaces
+the form in place (no greyed form left behind) with the code panel: "Code sent to +91
+98765 43210 · Change" ("Change" is a muted underline link back to the form), a single
+6-digit input (mono 20px, wide tracking, centered, 48px tall), and a green "Verify and
+book" button. No auto-submit on the sixth digit: verifying commits the booking. Below it a
+muted "Send a new code in 0:24" (mono digits) that becomes the underline link "Send a new
+code" at zero. In dev only, a separate notice shows "Mock code, dev only: NNNNNN". The
+screen also carries one muted line:
 "This spot is yours for the next 4:32" (mono digits, live against `expiresAt`, never a
 client-only counter). Under 60 seconds the digits turn red and the line reads "Hurry, this
 spot is yours for the next 0:41". At expiry the form disables and the screen says "Your time

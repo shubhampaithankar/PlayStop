@@ -24,7 +24,9 @@ const smsContactSchema = z.object({
   channel: z.literal("sms"),
   phone: z
     .string()
-    .regex(INDIA_PHONE_PATTERN)
+    .trim()
+    .transform((value) => value.replace(/\D/g, "")) // tolerate separators ("98765 43210", "98765-43210"); digit rule below is unchanged
+    .pipe(z.string().regex(INDIA_PHONE_PATTERN))
     .transform((value) => value.slice(-10)),
 });
 
