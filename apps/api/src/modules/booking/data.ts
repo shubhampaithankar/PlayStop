@@ -135,6 +135,17 @@ export function findBookingStation(stationId: ObjectId): Promise<StationDoc | nu
   return collections.stations().findOne({ _id: stationId });
 }
 
+// Read-only. ALL statuses, newest first. ponytail: capped at 100, paginate
+// if one contact ever books more than that.
+export function findBookingsByContact(venueId: ObjectId, contact: string): Promise<BookingDoc[]> {
+  return collections.bookings().find({ venueId, contact }).sort({ startsAt: -1 }).limit(100).toArray();
+}
+
+// One batch read for the lookup list, instead of a findBookingStation per booking.
+export function findStationsByIds(ids: ObjectId[]): Promise<StationDoc[]> {
+  return collections.stations().find({ _id: { $in: ids } }).toArray();
+}
+
 export function findBookingByConfirmationCode(
   bookingId: ObjectId,
   venueId: ObjectId,

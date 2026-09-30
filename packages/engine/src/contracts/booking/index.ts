@@ -81,3 +81,15 @@ export const cancelBookingRequestSchema = z.object({
 });
 
 export type CancelBookingRequest = z.infer<typeof cancelBookingRequestSchema>;
+
+export const lookupBookingsRequestSchema = z.object({
+  verificationId: z.string().uuid(),
+});
+
+export type LookupBookingsRequest = z.infer<typeof lookupBookingsRequestSchema>;
+
+export const lookupBookingsResponseSchema = z.object({
+  bookings: z.array(bookingResponseSchema),
+});
+
+export type LookupBookingsResponse = z.infer<typeof lookupBookingsResponseSchema>;

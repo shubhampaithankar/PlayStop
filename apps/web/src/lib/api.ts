@@ -9,6 +9,7 @@ import {
   availabilityResponseSchema,
   createHoldResponseSchema,
   bookingResponseSchema,
+  lookupBookingsResponseSchema,
   otpRequestResponseSchema,
   otpVerifyResponseSchema,
   type ErrorCode,
@@ -18,6 +19,7 @@ import {
   type CreateBookingRequest,
   type OtpRequest,
   type OtpVerify,
+  type LookupBookingsRequest,
 } from "@playstop/engine";
 
 /** The server answered with a structured error. `code` is the closed union from packages/engine. */
@@ -186,6 +188,9 @@ export const requestOtp = (b: OtpRequest) =>
 
 export const verifyOtp = (b: OtpVerify) =>
   request({ method: "POST", path: "/otp/verify", body: b, schema: otpVerifyResponseSchema });
+
+export const lookupBookings = (b: LookupBookingsRequest) =>
+  request({ method: "POST", path: "/bookings/lookup", body: b, schema: lookupBookingsResponseSchema });
 
 export const getBooking = (id: string, code: string) =>
   request({ method: "GET", path: `/bookings/${id}`, query: { code }, schema: bookingResponseSchema });

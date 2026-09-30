@@ -9,7 +9,7 @@ import { router } from "../src/router.js";
 
 test("the route tree has exactly the four screens from section 0, plus the root", () => {
   const ids = Object.keys(router.routesById).sort();
-  assert.deepEqual(ids, ["__root__", "/", "/book", "/book/$stationId", "/booking/$bookingId", "/bookings"].sort());
+  assert.deepEqual(ids, ["__root__", "/", "/book", "/book/$stationId", "/booking/$bookingId", "/bookings", "/bookings/find"].sort());
 });
 
 test("each route's fullPath is correct, which is also proof of correct nesting", () => {

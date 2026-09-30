@@ -20,6 +20,9 @@ export async function createIndexes(): Promise<void> {
     .bookings()
     .createIndex({ venueId: 1, confirmationCode: 1 }, { unique: true, name: "uniq_booking_code" });
 
+  // Non-unique: serves the look-up-my-bookings-by-verified-contact read.
+  await collections.bookings().createIndex({ venueId: 1, contact: 1 }, { name: "idx_booking_contact" });
+
   // idempotency's _id is implicitly unique; only the TTL index is explicit.
   await collections.idempotency().createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }

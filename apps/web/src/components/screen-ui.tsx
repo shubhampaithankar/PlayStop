@@ -10,7 +10,10 @@
 // `node --test`, which has no Vite alias resolution. Relative .js-extension
 // imports for the same reason as routes/root.tsx.
 import type { ComponentProps, CSSProperties, ReactNode } from "react";
-import { Dialog as DialogPrimitive } from "radix-ui";
+// The Radix primitive directly, not components/ui/toggle-group.tsx: that shadcn
+// file imports "@/lib/utils", which plain `node --test` cannot resolve.
+import { Dialog as DialogPrimitive, ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
+import type { OtpChannel } from "@playstop/engine";
 
 // Not the shadcn Alert/Skeleton -- same tokens, same rendered result, just
 // inlined so this stays resolvable from a plain `node --test` run. See
@@ -156,5 +159,104 @@ export function ConfirmDialog({
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
+  );
+}
+
+// Contact form pieces shared by the booking confirm step and the
+// find-my-bookings screen (lifted from book.station.tsx, unchanged).
+// Field error line: the id is what the input's aria-describedby points at.
+export function FieldError({ id, message }: { id: string; message: string | undefined }) {
+  return message ? (
+    <p id={id} role="alert" className="text-destructive text-sm">
+      {message}
+    </p>
+  ) : null;
+}
+
+// One bordered box (TextField's input classes) holding a fixed "+91" segment
+// and the number input. ponytail: India-only, so no country picker or phone
+// library; add libphonenumber-js if the lounge ever takes other countries.
+export function PhoneField({
+  id,
+  label,
+  value,
+  onValueChange,
+  disabled,
+  invalid,
+  describedBy,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled: boolean;
+  invalid: boolean;
+  describedBy: string | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="flex items-center gap-2 text-sm leading-none font-medium select-none">
+        {label}
+      </label>
+      <div className="border-input focus-within:border-ring focus-within:ring-ring/50 has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:ring-destructive/20 flex h-11 w-full items-center rounded-lg border bg-transparent transition-colors focus-within:ring-3 has-[input[aria-invalid=true]]:ring-3 has-[input:disabled]:opacity-50">
+        <span aria-hidden="true" className="border-input text-muted-foreground flex h-full items-center border-r px-2.5 font-mono text-base">
+          +91
+        </span>
+        <input
+          id={id}
+          name="contact"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          // No maxLength: the browser would truncate a pasted "+91 98765 43210" to its
+          // first 10 characters before onChange runs; the slice below is the cap.
+          pattern="[6-9][0-9]{9}"
+          placeholder="9876543210"
+          required
+          disabled={disabled}
+          value={value}
+          // Digits only, then the last 10: a pasted "+91 98765 43210" survives.
+          onChange={(event) => onValueChange(event.target.value.replace(/\D/g, "").slice(-10))}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
+          className="placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent px-2.5 py-1 text-base outline-none disabled:cursor-not-allowed"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function ChannelToggle({
+  value,
+  onValueChange,
+  disabled,
+}: {
+  value: OtpChannel;
+  onValueChange: (next: OtpChannel) => void;
+  disabled: boolean;
+}) {
+  return (
+    <ToggleGroupPrimitive.Root
+      type="single"
+      value={value}
+      onValueChange={(next) => {
+        // Radix emits "" when the pressed item is pressed again; a channel is always required.
+        if (next !== "email" && next !== "sms") return;
+        onValueChange(next);
+      }}
+      disabled={disabled}
+      aria-label="How should we send your code?"
+      className="grid grid-cols-2 gap-2.5"
+    >
+      {(["sms", "email"] as const).map((option) => (
+        <ToggleGroupPrimitive.Item
+          key={option}
+          value={option}
+          className={`border-input hover:bg-muted data-[state=on]:bg-muted data-[state=on]:text-foreground flex h-11 items-center justify-center rounded-(--radius) border bg-transparent text-sm transition-colors data-[state=on]:font-semibold disabled:opacity-50 ${FOCUS_RING}`}
+        >
+          {option === "sms" ? "SMS" : "Email"}
+        </ToggleGroupPrimitive.Item>
+      ))}
+    </ToggleGroupPrimitive.Root>
   );
 }

@@ -69,6 +69,9 @@ function BookingsScreen() {
           <p className="text-muted-foreground text-xs">Saved on this device only. Clearing site data removes the list.</p>
         </>
       )}
+      <Link to="/bookings/find" className={UNDERLINE_LINK}>
+        Find bookings on another device
+      </Link>
       <Link to="/book" className={UNDERLINE_LINK}>
         Back to booking
       </Link>

@@ -6,6 +6,7 @@ import {
   ERROR_CODES,
   getBookingQuerySchema,
   idempotencyKeySchema,
+  lookupBookingsRequestSchema,
   priceBooking,
 } from "@playstop/engine";
 import type { BookingDoc, SlotClaimDoc } from "#libs/mongo/index.js";
@@ -21,6 +22,8 @@ import {
   findBookingByConfirmationCode,
   findBookingById,
   findBookingStation,
+  findBookingsByContact,
+  findStationsByIds,
   notifyCancellation,
   notifyConfirmation,
   runCancelTransaction,
@@ -313,4 +316,38 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   ).catch(() => {});
 
   res.status(200).json(toBookingResponse(finalBooking, station.name, station.kind, venue.timezone));
+}
+
+// Read-only: no writes, no slot_claims, no transaction. The contact comes
+// ONLY from the verified OTP record, never from the client, so knowing
+// someone's contact is not enough to list their bookings. Fails closed
+// when Redis is down (inherits the OTP gate). The challenge is not
+// deleted: the same verificationId may be reused within its TTL.
+export async function lookupBookings(req: Request, res: Response): Promise<void> {
+  const venue = requireVenue(req);
+  const parsed = lookupBookingsRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid lookup request.", parsed.error.flatten());
+  }
+  const { value: verification, degraded } = await getOtpVerification(venue._id, parsed.data.verificationId);
+  if (degraded) {
+    throw new DomainError(ERROR_CODES.OTP_REQUIRED, 403, "OTP verification is temporarily unavailable.");
+  }
+  if (verification === null) {
+    throw new DomainError(ERROR_CODES.OTP_EXPIRED, 410, "That verification has expired.");
+  }
+  if (!verification.verified) {
+    throw new DomainError(ERROR_CODES.OTP_REQUIRED, 403, "Verification is required before looking up bookings.");
+  }
+
+  const bookingDocs = await findBookingsByContact(venue._id, verification.contact);
+  const stationIds = [...new Map(bookingDocs.map((b) => [b.stationId.toHexString(), b.stationId])).values()];
+  const stationDocs = await findStationsByIds(stationIds);
+  const stationsById = new Map(stationDocs.map((s) => [s._id.toHexString(), s]));
+  const bookings = bookingDocs.flatMap((b) => {
+    const station = stationsById.get(b.stationId.toHexString());
+    // A booking whose station doc is gone cannot be rendered: skip it, do not fail the list.
+    return station ? [toBookingResponse(b, station.name, station.kind, venue.timezone)] : [];
+  });
+  res.status(200).json({ bookings });
 }
