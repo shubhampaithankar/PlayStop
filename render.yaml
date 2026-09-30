@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter "@playstop/api..." build
+    buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm --filter "@playstop/api..." build
     startCommand: node apps/api/dist/main.js
     healthCheckPath: /health
     envVars:
