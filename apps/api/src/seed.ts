@@ -69,8 +69,8 @@ interface VenueSeed {
 }
 
 const MAIN_VENUE: VenueSeed = {
-  slug: "playstop-indiranagar",
-  name: "PlayStop Indiranagar",
+  slug: "playstop-laxminagar",
+  name: "PlayStop Laxminagar",
   timezone: "Asia/Kolkata",
   // 14:00 to 02:00: exercises the midnight-crossing path in manual
   // testing, not only in unit tests.

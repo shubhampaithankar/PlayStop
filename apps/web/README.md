@@ -47,7 +47,7 @@ For local development the slug is the one `apps/api/src/seed.ts` creates:
 
 ```
 VITE_API_URL=http://localhost:3001
-VITE_VENUE_SLUG=playstop-indiranagar
+VITE_VENUE_SLUG=playstop-laxminagar
 ```
 
 ## Module alias

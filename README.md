@@ -101,7 +101,7 @@ this repository with:
 - Environment variables (Vite bakes both in at build time, so set them before the build; the
   app throws on the first API call without them):
   - `VITE_API_URL` set to the deployed Render API URL (e.g. `https://playstop-api.onrender.com`)
-  - `VITE_VENUE_SLUG` set to the seeded venue slug (`playstop-indiranagar`)
+  - `VITE_VENUE_SLUG` set to the seeded venue slug (`playstop-laxminagar`)
 
 ## Module aliases
 
