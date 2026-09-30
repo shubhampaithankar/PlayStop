@@ -1,7 +1,12 @@
+import { createHash } from "node:crypto";
+import { DateTime } from "luxon";
 import { ObjectId } from "mongodb";
+import { buildClaimCells, generateSlotGrid, priceBooking } from "@playstop/engine";
 import { collections, connectMongo, mongoClient } from "#libs/mongo/index.js";
 import { createIndexes } from "#libs/mongo/indexes.js";
-import type { OpeningHours, StationDoc } from "#libs/mongo/index.js";
+import type { BookingDoc, OpeningHours, SlotClaimDoc, StationDoc } from "#libs/mongo/index.js";
+import { confirmationCodeFromBytes } from "#modules/booking/utils.js";
+import { venueScheduleOf } from "#modules/venue/utils.js";
 
 const GRID_MINUTES = 30;
 
@@ -143,13 +148,168 @@ async function upsertStation(venueId: ObjectId, input: StationInput): Promise<vo
   );
 }
 
-async function seedVenueWithStations(seed: VenueSeed, stationInputs: StationInput[]): Promise<void> {
+// ---------------------------------------------------------------------------
+// Demo availability states. Anchored to "today" in the venue timezone on every
+// run, so a reseed always lands in the running week. Bookings go through the
+// same shape and the same all-or-nothing transaction as createBooking, so the
+// uniq_slot_claim index stays the arbiter: this never bypasses it.
+// ---------------------------------------------------------------------------
+
+// Station that is retired: renders as the "unavailable" ghost card.
+const DEMO_RETIRED_SLUG = "ps3-3";
+// Station with a maintenance window tomorrow evening: "being fixed" cells.
+const DEMO_MAINTENANCE = { slug: "ps5-3", dayOffset: 1, firstCellIndex: 12, cellCount: 6 };
+
+interface DemoBookingRange {
+  stationSlug: string;
+  dayOffset: number; // 0 = today's business date, 1 = tomorrow
+  firstCellIndex: number; // index into that day's grid (0 = opening)
+  cellCount: number; // split into bookings of at most station.maxSlots
+}
+
+// 24 cells in a 14:00 to 02:00 day. ps2-1 is full tomorrow (booked_out);
+// ps2-2 is full except the last two cells (free_from 01:00 = near-full).
+const DEMO_BOOKING_RANGES: readonly DemoBookingRange[] = [
+  { stationSlug: "ps5-1", dayOffset: 0, firstCellIndex: 10, cellCount: 4 },
+  { stationSlug: "ps5-2", dayOffset: 0, firstCellIndex: 10, cellCount: 3 },
+  { stationSlug: "ps5-1", dayOffset: 1, firstCellIndex: 12, cellCount: 4 },
+  { stationSlug: "ps2-1", dayOffset: 1, firstCellIndex: 0, cellCount: 24 },
+  { stationSlug: "ps2-2", dayOffset: 1, firstCellIndex: 0, cellCount: 22 },
+];
+
+// Same alphabet and length as generateConfirmationCode, but derived from the
+// slot so a reseed finds the booking it already made.
+function demoConfirmationCode(stationSlug: string, startsAtIso: string): string {
+  return confirmationCodeFromBytes(createHash("sha256").update(`${stationSlug}|${startsAtIso}`).digest().subarray(0, 10));
+}
+
+async function seedDemoData(venueId: ObjectId): Promise<void> {
+  const venue = await collections.venues().findOne({ _id: venueId });
+  if (!venue) throw new Error("venue vanished before demo seeding");
+  const schedule = venueScheduleOf(venue);
+  const stations = await collections.stations().find({ venueId }).toArray();
+  const stationBySlug = new Map(stations.map((station) => [station.slug, station]));
+
+  const today = DateTime.now().setZone(venue.timezone).startOf("day");
+  // ponytail: before 02:00 local, "today" is a day ahead of the session still
+  // open. Fine for demo data (seeded rows are simply a few cells later).
+  const gridOf = (dayOffset: number) => {
+    const grid = generateSlotGrid(schedule, today.plus({ days: dayOffset }).toFormat("yyyy-MM-dd"));
+    if (grid.kind !== "open") throw new Error(`venue is closed on demo day +${dayOffset}`);
+    return grid;
+  };
+
+  // Retired station (ghost card) and maintenance window (being-fixed cells).
+  // Always re-set, so a reseed moves the window into the current week.
+  await collections
+    .stations()
+    .updateOne({ venueId, slug: DEMO_RETIRED_SLUG }, { $set: { status: "retired" } });
+  const maintenanceCells = gridOf(DEMO_MAINTENANCE.dayOffset).cells.slice(
+    DEMO_MAINTENANCE.firstCellIndex,
+    DEMO_MAINTENANCE.firstCellIndex + DEMO_MAINTENANCE.cellCount,
+  );
+  const lastMaintenanceCell = maintenanceCells[maintenanceCells.length - 1];
+  const firstMaintenanceCell = maintenanceCells[0];
+  if (!firstMaintenanceCell || !lastMaintenanceCell) throw new Error("maintenance window falls outside the grid");
+  await collections.stations().updateOne(
+    { venueId, slug: DEMO_MAINTENANCE.slug },
+    {
+      $set: {
+        maintenanceWindows: [
+          { startsAt: new Date(firstMaintenanceCell.cellStartMs), endsAt: new Date(lastMaintenanceCell.cellEndMs) },
+        ],
+      },
+    },
+  );
+
+  let created = 0;
+  let alreadySeeded = 0;
+  const session = mongoClient().startSession();
+  try {
+    for (const range of DEMO_BOOKING_RANGES) {
+      const station = stationBySlug.get(range.stationSlug);
+      if (!station) throw new Error(`demo booking references unknown station "${range.stationSlug}"`);
+      const grid = gridOf(range.dayOffset);
+
+      for (let offset = 0; offset < range.cellCount; offset += station.maxSlots) {
+        const slotCount = Math.min(station.maxSlots, range.cellCount - offset);
+        const startCell = grid.cells[range.firstCellIndex + offset];
+        if (!startCell) throw new Error(`demo range for "${range.stationSlug}" runs past the grid`);
+        const { playMs, bufferMs } = buildClaimCells(grid.cells, startCell.cellStartMs, slotCount, 0);
+        const startsAtIso = new Date(startCell.cellStartMs).toISOString();
+        const confirmationCode = demoConfirmationCode(station.slug, startsAtIso);
+
+        if (await collections.bookings().findOne({ venueId, confirmationCode })) {
+          alreadySeeded++;
+          continue;
+        }
+
+        const now = new Date();
+        const bookingId = new ObjectId();
+        const bookingDoc: BookingDoc = {
+          _id: bookingId,
+          venueId,
+          stationId: station._id,
+          startsAt: new Date(startCell.cellStartMs),
+          endsAt: new Date(startCell.cellStartMs + slotCount * venue.gridMinutes * 60_000),
+          slotCount,
+          bufferSlotCount: 0, // ponytail: MAIN_VENUE bufferMinutes is 0; buildClaimCells would return bufferMs otherwise
+          partySize: 2,
+          status: "confirmed",
+          confirmationCode,
+          totalMinor: priceBooking(station, venue.gridMinutes, slotCount),
+          currency: venue.currency,
+          player: { name: "Demo Guest" },
+          contactChannel: "email",
+          contact: "demo-guest@playstop.invalid",
+          idempotencyKey: `demo-seed-${station.slug}-${startsAtIso}`,
+          createdAt: now,
+          cancelledAt: null,
+          confirmationSentAt: null,
+          cancellationSentAt: null,
+          nudgeSentAt: null,
+        };
+        const claimDocs: SlotClaimDoc[] = [
+          ...playMs.map((ms) => ({ ms, kind: "play" as const })),
+          ...bufferMs.map((ms) => ({ ms, kind: "buffer" as const })),
+        ].map(({ ms, kind }) => ({
+          _id: new ObjectId(),
+          venueId,
+          stationId: station._id,
+          bookingId,
+          cellStart: new Date(ms),
+          kind,
+          status: "confirmed" as const,
+          createdAt: now,
+        }));
+
+        // All cells or none. A real booking already holding one of these
+        // cells makes the insert throw 11000 (uniq_slot_claim); the seed
+        // fails loudly rather than skipping the index.
+        await session.withTransaction(
+          async () => {
+            await collections.bookings().insertOne(bookingDoc, { session });
+            await collections.slotClaims().insertMany(claimDocs, { session, ordered: true });
+          },
+          { readConcern: { level: "local" }, writeConcern: { w: "majority" }, readPreference: "primary" },
+        );
+        created++;
+      }
+    }
+  } finally {
+    await session.endSession();
+  }
+  console.log(`demo data: ${created} booking(s) created, ${alreadySeeded} already present`);
+}
+
+async function seedVenueWithStations(seed: VenueSeed, stationInputs: StationInput[]): Promise<ObjectId> {
   const venueId = await upsertVenue(seed);
   for (const input of stationInputs) {
     await upsertStation(venueId, input);
   }
   const stationCount = await collections.stations().countDocuments({ venueId });
   console.log(`seeded "${seed.slug}": ${stationCount} station(s)`);
+  return venueId;
 }
 
 async function main(): Promise<void> {
@@ -159,7 +319,9 @@ async function main(): Promise<void> {
   await createIndexes();
 
   const stationInputs = buildStationInputs();
-  await seedVenueWithStations(MAIN_VENUE, stationInputs);
+  const mainVenueId = await seedVenueWithStations(MAIN_VENUE, stationInputs);
+  // Default on, so a fresh or prod reseed shows every availability state.
+  if (!process.argv.includes("--no-demo-data")) await seedDemoData(mainVenueId);
 
   if (withDstVenue) {
     await seedVenueWithStations(DST_VENUE, []);

@@ -9,7 +9,11 @@ import { localLabelOf } from "#modules/venue/utils.js";
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 export function generateConfirmationCode(): string {
-  const bytes = randomBytes(10);
+  return confirmationCodeFromBytes(randomBytes(10));
+}
+
+// Split out so the seed can derive a deterministic code from a hash.
+export function confirmationCodeFromBytes(bytes: Uint8Array): string {
   let code = "";
   for (const byte of bytes) {
     code += ALPHABET[byte % ALPHABET.length];
