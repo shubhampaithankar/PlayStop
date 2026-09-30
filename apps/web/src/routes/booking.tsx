@@ -6,7 +6,7 @@
 // Relative .js-extension imports for the same reason as routes/root.tsx:
 // apps/web/tests/router.test.ts imports router.tsx (and therefore this
 // file) under plain `node --test`, which has no Vite alias resolution.
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +16,8 @@ import { bookingOptions, keys, venueOptions, invalidateAvailability } from "../l
 import { ApiRequestError, cancelBooking, errorPresentation } from "../lib/api.js";
 import { instantLabel } from "../lib/stations.js";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
-import { SkeletonBox, ConfirmDialog, FOCUS_RING } from "../components/screen-ui.js";
+import { saveBooking } from "../lib/booking-history.js";
+import { SkeletonBox, ConfirmDialog, FOCUS_RING, UNDERLINE_LINK } from "../components/screen-ui.js";
 
 // .catch(undefined) rather than a bare .optional(): validateSearch throwing
 // escapes to the ROOT error boundary and would replace the whole app with
@@ -85,6 +86,23 @@ function BookedScreen() {
   const [cancelling, setCancelling] = useState(false);
   const [nowMs] = useState(() => Date.now());
   const codeRef = useRef<HTMLElement>(null);
+
+  // Remember a successfully loaded booking on this device (lib/booking-history.ts).
+  // Only runs with data in hand, so error and pending states never record.
+  const loadedBooking = bookingQuery.data;
+  const savedCode = search.code;
+  useEffect(() => {
+    if (!loadedBooking || savedCode === undefined) return;
+    saveBooking({
+      id: loadedBooking.id,
+      code: savedCode,
+      stationName: loadedBooking.stationName,
+      kind: loadedBooking.stationKind,
+      startsAtMs: Date.parse(loadedBooking.startsAt),
+      endsAtMs: Date.parse(loadedBooking.endsAt),
+      savedAtMs: Date.now(),
+    });
+  }, [loadedBooking, savedCode]);
 
   if (search.code === undefined) return <MissingCodeState />;
   if (bookingQuery.isError) return <ErrorState error={bookingQuery.error} />;
@@ -201,6 +219,9 @@ function BookedScreen() {
           Cancel this booking
         </button>
       ) : null}
+      <Link to="/bookings" className={UNDERLINE_LINK}>
+        Your bookings on this device
+      </Link>
       <ConfirmDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}

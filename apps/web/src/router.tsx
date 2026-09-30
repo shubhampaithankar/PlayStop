@@ -14,11 +14,13 @@ import { indexRoute } from "./routes/index.js";
 import { bookRoute } from "./routes/book.js";
 import { bookStationRoute } from "./routes/book.station.js";
 import { bookingRoute } from "./routes/booking.js";
+import { bookingsRoute } from "./routes/bookings.js";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   bookRoute.addChildren([bookStationRoute]),
   bookingRoute,
+  bookingsRoute,
 ]);
 
 // node --test has no window, so no browser History API to build the

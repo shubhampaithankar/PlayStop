@@ -8,7 +8,7 @@
 // resolution. Everything this file needs (sonner, lucide-react) is a real
 // package, so the relative form costs nothing and stays dual-environment.
 import * as React from "react";
-import { createRootRoute, Outlet, type ErrorComponentProps } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, type ErrorComponentProps } from "@tanstack/react-router";
 import { Square, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Toaster } from "../components/ui/sonner.js";
@@ -52,7 +52,7 @@ function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className={`text-muted-foreground hover:bg-muted hover:text-foreground ml-auto flex size-11 items-center justify-center rounded-(--radius) transition-colors ${FOCUS_RING}`}
+      className={`text-muted-foreground hover:bg-muted hover:text-foreground flex size-11 items-center justify-center rounded-(--radius) transition-colors ${FOCUS_RING}`}
     >
       {isDark ? <Sun aria-hidden="true" className="size-4.5" /> : <Moon aria-hidden="true" className="size-4.5" />}
     </button>
@@ -64,6 +64,12 @@ function RootComponent() {
     <>
       <header className="border-border flex h-14 items-center border-b px-4 md:px-6">
         <Wordmark />
+        <Link
+          to="/bookings"
+          className={`text-muted-foreground hover:text-foreground ml-auto flex h-11 items-center rounded-(--radius) px-3 text-sm transition-colors ${FOCUS_RING}`}
+        >
+          Your bookings
+        </Link>
         <ThemeToggle />
       </header>
       <Outlet />
