@@ -13,6 +13,7 @@ import type { ComponentProps, CSSProperties, ReactNode } from "react";
 // The Radix primitive directly, not components/ui/toggle-group.tsx: that shadcn
 // file imports "@/lib/utils", which plain `node --test` cannot resolve.
 import { Dialog as DialogPrimitive, ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
+import { ArrowLeft, Square } from "lucide-react";
 import type { OtpChannel } from "@playstop/engine";
 
 // Not the shadcn Alert/Skeleton -- same tokens, same rendered result, just
@@ -45,6 +46,26 @@ export const FOCUS_RING =
 // it across five buttons and missed one.
 export const UNDERLINE_LINK = `flex min-h-11 items-center text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`;
 
+// Back-style link: foreground colour (not muted) plus a leading arrow, so it
+// reads as a control. Compose with the negative-margin hit-area trick per site.
+export const BACK_LINK = `text-foreground hover:text-brand dark:hover:text-brand-bright gap-1.5 font-medium ${UNDERLINE_LINK}`;
+
+// One loading look for route/query pending states (DESIGN.md: the STOP-square
+// mark is the brand idiom). Pulse is motion-safe only: reduced motion gets the
+// static mark. A div, not a main, so it nests inside a screen or stands alone.
+// ponytail: one generic loader; shaped skeletons stay where layout shift matters (book grids).
+export function LoadingScreen() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading"
+      className="text-brand dark:text-brand-bright flex min-h-[50vh] w-full items-center justify-center"
+    >
+      <Square aria-hidden="true" className="size-8 motion-safe:animate-pulse" fill="currentColor" />
+    </div>
+  );
+}
+
 /* Entrance stagger (DESIGN.md motion): child N rises 35ms later, capped at 9. */
 export const riseDelay = (index: number): CSSProperties =>
   ({ "--rise-delay": `${Math.min(index, 8) * 35}ms` }) as CSSProperties;
@@ -64,8 +85,9 @@ export function StepHeading({
         <button
           type="button"
           onClick={onBack}
-          className={`text-muted-foreground hover:text-foreground -m-2.5 self-start p-2.5 ${UNDERLINE_LINK}`}
+          className={`-m-2.5 self-start p-2.5 ${BACK_LINK}`}
         >
+          <ArrowLeft aria-hidden="true" className="size-4" />
           Back
         </button>
       ) : null}

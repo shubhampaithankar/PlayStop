@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { otpContactSchema } from "@playstop/engine";
 import type { BookingResponse, OtpChannel, OtpContact } from "@playstop/engine";
 import { rootRoute } from "./root.js";
@@ -20,7 +21,8 @@ import {
   FOCUS_RING,
   Notice,
   PhoneField,
-  SkeletonBox,
+  LoadingScreen,
+  BACK_LINK,
   StepHeading,
   TextField,
   UNDERLINE_LINK,
@@ -114,7 +116,7 @@ function BookingsFindScreen() {
         venueQuery.isError ? (
           <Notice tone="destructive">{errorMessage(venueQuery.error)}</Notice>
         ) : !venue ? (
-          <SkeletonBox className="h-32 w-full rounded-(--radius-card)" />
+          <LoadingScreen />
         ) : results.length === 0 ? (
           <Notice>No bookings found for {contactLabel}.</Notice>
         ) : (
@@ -250,7 +252,8 @@ function BookingsFindScreen() {
         </form>
       )}
 
-      <Link to="/bookings" className={UNDERLINE_LINK}>
+      <Link to="/bookings" className={BACK_LINK}>
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to your bookings
       </Link>
     </main>

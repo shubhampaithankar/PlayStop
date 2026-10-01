@@ -16,6 +16,7 @@ import { bookStationRoute } from "./routes/book.station.js";
 import { bookingRoute } from "./routes/booking.js";
 import { bookingsRoute } from "./routes/bookings.js";
 import { bookingsFindRoute } from "./routes/bookings.find.js";
+import { LoadingScreen } from "./components/screen-ui.js";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -32,6 +33,7 @@ const routeTree = rootRoute.addChildren([
 export const router = createRouter({
   routeTree,
   defaultPreload: "intent",
+  defaultPendingComponent: LoadingScreen,
   ...(typeof window === "undefined" ? { history: createMemoryHistory() } : {}),
 });
 

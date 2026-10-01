@@ -10,7 +10,8 @@ import { venueOptions } from "../lib/query-client.js";
 import { readBookings } from "../lib/booking-history.js";
 import { instantLabel } from "../lib/stations.js";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
-import { SkeletonBox, FOCUS_RING, UNDERLINE_LINK } from "../components/screen-ui.js";
+import { ArrowLeft } from "lucide-react";
+import { LoadingScreen, FOCUS_RING, UNDERLINE_LINK, BACK_LINK } from "../components/screen-ui.js";
 
 function BookingsScreen() {
   const [bookings] = useState(readBookings);
@@ -36,7 +37,7 @@ function BookingsScreen() {
       ) : venueQuery.isError ? (
         <p className="text-muted-foreground text-sm">Something went wrong. Please try again.</p>
       ) : !venue ? (
-        <SkeletonBox className="h-32 w-full rounded-(--radius-card)" />
+        <LoadingScreen />
       ) : (
         <>
           <ul className="flex flex-col gap-3">
@@ -72,7 +73,8 @@ function BookingsScreen() {
       <Link to="/bookings/find" className={UNDERLINE_LINK}>
         Find bookings on another device
       </Link>
-      <Link to="/book" className={UNDERLINE_LINK}>
+      <Link to="/book" className={BACK_LINK}>
+        <ArrowLeft aria-hidden="true" className="size-4" />
         Back to booking
       </Link>
     </main>

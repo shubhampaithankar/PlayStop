@@ -34,10 +34,14 @@ const ReactQueryDevtools = import.meta.env?.DEV
 // whole word and the trailing STOP-square mark alike.
 function Wordmark() {
   return (
-    <span className="font-display text-brand dark:text-brand-bright flex items-center gap-1 text-lg uppercase tracking-wide">
+    <Link
+      to="/"
+      aria-label="PlayStop, home"
+      className={`font-display text-brand dark:text-brand-bright hover:text-brand/80 dark:hover:text-brand-bright/80 flex min-h-11 cursor-pointer items-center gap-1 rounded-(--radius) text-lg uppercase tracking-wide transition-colors ${FOCUS_RING}`}
+    >
       PlayStop
       <Square aria-hidden="true" className="size-4" fill="currentColor" />
-    </span>
+    </Link>
   );
 }
 

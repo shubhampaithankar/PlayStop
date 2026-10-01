@@ -17,7 +17,7 @@ import { ApiRequestError, cancelBooking, errorPresentation } from "../lib/api.js
 import { instantLabel } from "../lib/stations.js";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
 import { saveBooking } from "../lib/booking-history.js";
-import { SkeletonBox, ConfirmDialog, FOCUS_RING, UNDERLINE_LINK } from "../components/screen-ui.js";
+import { LoadingScreen, ConfirmDialog, FOCUS_RING, UNDERLINE_LINK } from "../components/screen-ui.js";
 
 // .catch(undefined) rather than a bare .optional(): validateSearch throwing
 // escapes to the ROOT error boundary and would replace the whole app with
@@ -60,9 +60,7 @@ function ErrorState({ error }: { error: unknown }) {
 function SkeletonState() {
   return (
     <PageShell>
-      <SkeletonBox className="h-8 w-48 rounded-(--radius)" />
-      <SkeletonBox className="h-32 w-full rounded-(--radius-card)" />
-      <SkeletonBox className="h-4 w-64 rounded-(--radius)" />
+      <LoadingScreen />
     </PageShell>
   );
 }
