@@ -1,0 +1,33 @@
+name: Weekly demo reseed
+
+# Re-seeds the prod demo data every Monday so the booking grid always shows
+# taken / maintenance / booked-out cells for the current week (the seed
+# re-anchors its demo bookings to "this week" on each run; left alone they
+# drift into the past and the grid goes all-free). Idempotent: old weeks'
+# rows stay behind as harmless past data, no clearing. Run it by hand from
+# the Actions tab via workflow_dispatch whenever the demo looks stale.
+on:
+  schedule:
+    - cron: "30 0 * * 1" # Mondays 00:30 UTC (06:00 IST)
+  workflow_dispatch: {}
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@playstop/api..." build
+      - run: pnpm --filter @playstop/api seed
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: playstop
+          # Seed never connects to Redis; env.ts still requires a valid URL.
+          REDIS_URL: redis://localhost:6379
+          APP_ENV: prod
