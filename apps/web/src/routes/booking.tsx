@@ -109,7 +109,7 @@ function BookedScreen() {
 
   const booking = bookingQuery.data;
   const venue = venueQuery.data;
-  if (!booking || !venue) return null; // exhausts pending/error/success
+  if (!booking || !venue) return <SkeletonState />; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
 
   const startLabel = instantLabel(booking.startsAt, venue.timezone);
   const endLabel = instantLabel(booking.endsAt, venue.timezone);

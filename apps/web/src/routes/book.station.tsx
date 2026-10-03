@@ -64,6 +64,7 @@ import {
 import {
   Notice,
   SkeletonBox,
+  LoadingScreen,
   TextField,
   FieldError,
   PhoneField,
@@ -273,7 +274,7 @@ function buildBookingCandidate(attempt: BookingAttempt, name: string, contact: O
   };
 }
 
-async function releaseAttemptHold(attempt: BookingAttempt): Promise<void> {
+async function releaseAttemptHold(attempt: BookingAttempt, queryClient: QueryClient): Promise<void> {
   if (!attempt.hold) return;
   await releaseHold({
     holdId: attempt.hold.holdId,
@@ -283,6 +284,10 @@ async function releaseAttemptHold(attempt: BookingAttempt): Promise<void> {
   }).catch(() => {
     // Best effort; the TTL is the real backstop (docs/conventions/booking-correctness.md).
   });
+  // Mirror createHold's acquire-time invalidation on release: without this the
+  // grid the user returns to (e.g. after Back) keeps showing the just-freed
+  // cell as held ("being booked") until the query goes stale on its own.
+  invalidateAvailability(queryClient);
 }
 
 /** Sibling fallback on SLOT_TAKEN (booking-guardrails-otp-design.md, "the
@@ -428,7 +433,7 @@ function DetailsScreen({
       if (!current?.hold) return;
       pendingReleaseRef.current = window.setTimeout(() => {
         pendingReleaseRef.current = null;
-        void releaseAttemptHold(current);
+        void releaseAttemptHold(current, queryClient);
       }, 0);
     };
   }, []);
@@ -519,7 +524,7 @@ function DetailsScreen({
       previous?.stationId === target.stationId &&
       previous.startsAt === target.startsAt &&
       previous.slotCount === target.slotCount;
-    if (previous && !sameRequest) await releaseAttemptHold(previous);
+    if (previous && !sameRequest) await releaseAttemptHold(previous, queryClient);
   }
 
   async function handleFreshHold() {
@@ -1221,7 +1226,7 @@ function BookStationScreen() {
   }
 
   const availability = availabilityQuery.data;
-  if (!availability) return null; // exhausts pending/error/success
+  if (!availability) return <PageShell><LoadingScreen /></PageShell>; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
 
   const cells = cellsByStation(availability.cells, stationId);
 
@@ -1323,7 +1328,7 @@ function BookStationScreen() {
     const previous = readAttempt();
     const isSameRequest =
       previous?.stationId === stationId && previous.startsAt === search.start && previous.slotCount === option.slotCount;
-    if (previous && !isSameRequest) void releaseAttemptHold(previous);
+    if (previous && !isSameRequest) void releaseAttemptHold(previous, queryClient);
 
     // The idempotency key is created once, in the same statement that
     // writes the attempt record, before the hold request is sent. It is

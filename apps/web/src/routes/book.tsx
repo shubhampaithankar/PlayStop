@@ -23,7 +23,7 @@ import {
   pickStationForKind,
   type KindStatus,
 } from "../lib/stations.js";
-import { Notice, SkeletonBox, FOCUS_RING, riseDelay, StepHeading } from "../components/screen-ui.js";
+import { Notice, SkeletonBox, LoadingScreen, FOCUS_RING, riseDelay, StepHeading } from "../components/screen-ui.js";
 
 // DESIGN.md's art word is "PS5"/"PS3"/"PS2"/"SIM"; the real station kind is
 // "racing-sim" (packages/types), so it needs a display label rather than a
@@ -265,7 +265,7 @@ function BookPage() {
   }
 
   const availability = availabilityQuery.data;
-  if (!availability) return <PageShell>{null}</PageShell>; // exhausts pending/error/success
+  if (!availability) return <PageShell><LoadingScreen /></PageShell>; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
 
   return (
     <PageShell>
