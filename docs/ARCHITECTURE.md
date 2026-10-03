@@ -217,6 +217,13 @@ regenerating either one turns a retry into a second booking. Verified against th
 the same key replays to the same booking (`Idempotent-Replay: true`), and a fresh key on the
 same range is refused with `SLOT_TAKEN`.
 
+**Also done:** players find their bookings without accounts, a device-local list at `/bookings`
+(localStorage) and a cross-device lookup at `/bookings/find` that reuses the OTP flow
+(`POST /bookings/lookup`, contact read from the verified record, `idx_booking_contact`). The demo
+grid is kept current by a weekly GitHub Actions cron that reseeds prod (`weekly-seed.yml`).
+
 **Still not present on purpose:** TanStack Table, auth, accounts, a staff view, a date picker.
 TanStack Table was evaluated and dropped, since nothing in this UI is tabular. Adding any of
-the rest is scope creep.
+the rest is scope creep. Real email OTP is also deferred: it needs a verified sending domain the
+project does not own (it runs on shared `*.pages.dev` / `*.onrender.com`), so prod stays a
+mock-OTP demo by choice.

@@ -58,11 +58,18 @@ idempotency design lives in one small module: it mints an idempotency key once p
 resends a frozen request body verbatim on every retry, which is the only thing that keeps a
 confirm whose response never arrived from turning into a second booking.
 
+Players find their bookings without any login. There is a device-local list in the browser, and a
+cross-device lookup that reuses the OTP flow: verify the email or phone you booked with and get
+back every booking for it. The contact is read from the verified OTP record, never from the
+request, so the same work that gates a booking doubles as a lightweight identity, no accounts.
+
 ## What I would do next
 
 OTP delivery is mocked today (the code shows on screen), which is the right call for a portfolio
-demo and a one-file swap away from a real SMS or email provider. Beyond that, a staff view and
-accounts are the obvious next milestone, both left out on purpose to keep the current scope
+demo. Making it real is less about code than it looks: every reputable email provider requires a
+verified sending domain, and the app runs on shared `*.pages.dev` and `*.onrender.com` subdomains
+it cannot add DNS records to, so real email starts with buying a domain. Beyond that, a staff view
+and accounts are the obvious next milestone, both left out on purpose to keep the current scope
 honest.
 
 ## Stack

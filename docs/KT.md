@@ -61,7 +61,8 @@ transitions and sessions that cross midnight (the venue opens 14:00 to 02:00).
 - `pnpm --filter @playstop/api seed` seeds the venue, 15 stations, and demo bookings for the
   current week (taken cells, a maintenance window, a retired station, a booked-out station). The
   demo data is idempotent and re-anchors to the running week on each seed. `--no-demo-data` skips
-  it.
+  it. A weekly GitHub Actions cron (`.github/workflows/weekly-seed.yml`) reseeds prod every Monday
+  so the live demo always shows the current week.
 
 ## Deploy
 
@@ -79,8 +80,19 @@ against the unique index) runs in CI only, against real Mongo replica set and Re
 containers, because Atlas M0 throttles at 100 ops/second and would produce failures
 indistinguishable from real races. It is gated behind `TEST_PROFILE=ci`.
 
+## Finding a booking
+
+A confirmed booking is reachable two ways, with no accounts. `/bookings` is a device-local list
+(localStorage, no backend). `/bookings/find` verifies the player's email or phone through the
+existing OTP flow, then lists every booking for that contact via `POST /bookings/lookup`: the
+contact is read from the verified OTP record, never client-supplied, so you cannot list someone
+else's bookings by typing their number. Backed by the `idx_booking_contact` index; read-only.
+
 ## Out of scope on purpose
 
 No auth, accounts, staff view, date picker, or TanStack Table (nothing here is tabular). No
-Docker, no local database. OTP delivery is mocked; wiring a real sender is a one-file swap in
-`apps/api/src/libs/notify` and is the only thing between this and real customers.
+Docker, no local database. OTP delivery is mocked (the code shows on screen). Wiring a real email
+sender is not just the `apps/api/src/libs/notify` swap: every reputable provider requires a
+verified sending domain (SPF/DKIM/DMARC), and the project owns none (it lives on `*.pages.dev` and
+`*.onrender.com`), so real email needs buying a domain first. Kept mock on purpose; prod is a
+recruiter demo. SMS has no free India path (DLT registration plus per-message cost).
