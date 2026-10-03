@@ -34,6 +34,10 @@ export const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   defaultPendingComponent: LoadingScreen,
+  // Pending UI only for genuine waits: nothing under 200ms, and once shown it
+  // stays at least 500ms so it never flashes.
+  defaultPendingMs: 200,
+  defaultPendingMinMs: 500,
   ...(typeof window === "undefined" ? { history: createMemoryHistory() } : {}),
 });
 

@@ -479,6 +479,16 @@ stale, which costs nothing.
 Nothing invalidates the venue query. Nothing invalidates a booking query except its own cancel,
 which sets the data directly rather than refetching it.
 
+### Transition feedback
+
+Route loaders (`/`, `/book`, `/booking/:id`) call `queryClient.ensureQueryData` on the same
+`queryOptions` the components use, each with `.catch(() => undefined)`, so the cache is warm and
+no loader error reaches a boundary. The router shows `LoadingScreen` only after 200ms pending
+(`defaultPendingMs`) and keeps it at least 500ms (`defaultPendingMinMs`). Separately, a 3px
+brand-colour bar fixed to the top of the page (`RouteProgressBar` in `routes/root.tsx`) shows
+while any navigation is pending. It fades in after 150ms, slides while motion is allowed, and is
+a static bar under `prefers-reduced-motion`.
+
 ---
 
 ## 5. The hold lifecycle and the idempotency key

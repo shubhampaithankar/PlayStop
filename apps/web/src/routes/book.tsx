@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { STATION_KINDS, type StationKind } from "@playstop/types";
 import type { AvailabilityCell, StationSummary } from "@playstop/engine";
 import { rootRoute } from "./root.js";
-import { venueOptions, availabilityOptions } from "../lib/query-client.js";
+import { queryClient, venueOptions, availabilityOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation } from "../lib/api.js";
 import { businessDateStrip, currentBusinessDate, type BusinessDateChip } from "../lib/business-date.js";
 import { readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
@@ -294,5 +294,13 @@ function BookPage() {
 export const bookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/book",
+  // Prime the same queries BookPage reads so the pending phase covers the
+  // genuine wait. book.station inherits this; its steps 2-4 stay instant.
+  loader: async () => {
+    const venue = await queryClient.ensureQueryData(venueOptions()).catch(() => undefined);
+    if (!venue) return;
+    const date = readSelectedDate() ?? currentBusinessDate(venue, new Date());
+    await queryClient.ensureQueryData(availabilityOptions(date, undefined, false)).catch(() => undefined);
+  },
   component: BookPage,
 });

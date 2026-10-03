@@ -290,7 +290,7 @@ shadcn/ui mapping, themed, never restyled beyond tokens:
 | Player form | `Input` + `Label` | inline errors below fields, red text |
 | Closed / degraded notice | `Alert` | plain words: "Bookings are closed today." / "Live updates are down. A console shown free may already be taken." |
 | Taken-while-booking (409/410) | `Sonner` toast + refetch | names the time: "Someone took 9:30 pm while you were looking. Pick another time." |
-| Loading | `Skeleton` in card / button geometry | |
+| Loading | `Skeleton` in card / button geometry | route waits: after 200ms the STOP-square `LoadingScreen`, held 500ms minimum; a 3px brand bar fixed at the top shows on any pending navigation (static under reduced motion) |
 | Confirmation code | custom bordered block | mono 60px |
 
 Console cards, time buttons, and length buttons are custom elements (buttons when bookable,

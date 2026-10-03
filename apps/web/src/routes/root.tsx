@@ -8,11 +8,12 @@
 // resolution. Everything this file needs (sonner, lucide-react) is a real
 // package, so the relative form costs nothing and stays dual-environment.
 import * as React from "react";
-import { createRootRoute, Link, Outlet, type ErrorComponentProps } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import { Square, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Toaster } from "../components/ui/sonner.js";
 import { FOCUS_RING } from "../components/screen-ui.js";
+import { queryClient, venueOptions } from "../lib/query-client.js";
 
 // import.meta.env is a Vite-only global (see lib/api.ts's envVar for the
 // same guard) -- undefined under node --test, never true there, so
@@ -63,9 +64,23 @@ function ThemeToggle() {
   );
 }
 
+// Thin top bar while any navigation is pending (DESIGN.md transition feedback).
+// Decorative: LoadingScreen already carries role="status" for the long waits.
+// The CSS delays its fade-in, so a navigation that settles fast never shows it.
+function RouteProgressBar() {
+  const isPending = useRouterState({ select: (state) => state.status === "pending" });
+  if (!isPending) return null;
+  return (
+    <div aria-hidden="true" className="route-progress bg-brand/20 dark:bg-brand-bright/20">
+      <div className="route-progress-bar bg-brand dark:bg-brand-bright" />
+    </div>
+  );
+}
+
 function RootComponent() {
   return (
     <>
+      <RouteProgressBar />
       <header className="border-border flex h-14 items-center border-b px-4 md:px-6">
         <Wordmark />
         <Link
@@ -115,6 +130,11 @@ function NotFoundComponent() {
 }
 
 export const rootRoute = createRootRoute({
+  // Venue is read by every screen and never goes stale (staleTime Infinity), so
+  // priming it here makes later client navigations instant. .catch: a failed
+  // prefetch must not reach the root error boundary; the screen's own useQuery
+  // re-hits the cached error and renders its inline error UI.
+  loader: () => queryClient.ensureQueryData(venueOptions()).catch(() => undefined),
   component: RootComponent,
   errorComponent: RootErrorComponent,
   notFoundComponent: NotFoundComponent,

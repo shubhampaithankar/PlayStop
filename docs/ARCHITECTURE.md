@@ -217,6 +217,10 @@ regenerating either one turns a retry into a second booking. Verified against th
 the same key replays to the same booking (`Idempotent-Replay: true`), and a fresh key on the
 same range is refused with `SLOT_TAKEN`.
 
+Route loaders on `/`, `/book` and `/booking/:id` prime the query cache with the same `queryOptions`
+the components read, so the router's pending phase covers a navigation's genuine wait. Components
+still own their queries and their inline error UI; a loader never throws (`.catch`), it only warms.
+
 **Also done:** players find their bookings without accounts, a device-local list at `/bookings`
 (localStorage) and a cross-device lookup at `/bookings/find` that reuses the OTP flow
 (`POST /bookings/lookup`, contact read from the verified record, `idx_booking_contact`). The demo

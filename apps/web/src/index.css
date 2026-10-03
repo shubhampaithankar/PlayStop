@@ -534,6 +534,41 @@ body {
   }
 }
 
+/* Route progress bar (DESIGN.md transition feedback). The fade-in delay keeps
+ * fast navigations from flashing it; reduced motion gets a static full bar. */
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  animation: route-progress-in 0.2s ease-out 0.15s both;
+}
+.route-progress-bar {
+  height: 100%;
+  width: 100%;
+}
+@keyframes route-progress-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .route-progress-bar {
+    width: 40%;
+    animation: route-progress-slide 1.1s ease-in-out infinite;
+  }
+  @keyframes route-progress-slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+}
+
 /* Hover depth: not motion, so it is outside the reduced-motion gate. Pointer
  * devices only -- on Android a tap leaves :hover stuck on the card it just
  * selected, which reads as a second selected state. */

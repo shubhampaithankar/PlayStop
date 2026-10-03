@@ -12,7 +12,7 @@ import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { rootRoute } from "./root.js";
-import { bookingOptions, keys, venueOptions, invalidateAvailability } from "../lib/query-client.js";
+import { queryClient, bookingOptions, keys, venueOptions, invalidateAvailability } from "../lib/query-client.js";
 import { ApiRequestError, cancelBooking, errorPresentation } from "../lib/api.js";
 import { instantLabel } from "../lib/stations.js";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
@@ -237,5 +237,8 @@ export const bookingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/booking/$bookingId",
   validateSearch: (search) => searchSchema.parse(search),
+  loaderDeps: ({ search }) => ({ code: search.code }),
+  loader: ({ params, deps }) =>
+    deps.code ? queryClient.ensureQueryData(bookingOptions(params.bookingId, deps.code)).catch(() => undefined) : undefined,
   component: BookedScreen,
 });
