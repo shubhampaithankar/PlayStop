@@ -1249,6 +1249,11 @@ function BookStationScreen() {
 
   const startCell = cells.find((cell) => cell.startsAt === search.start);
   if (!startCell) {
+    // A background refetch (poll, or the invalidation on a hold release) can
+    // momentarily hold cells that do not yet include this start: show the
+    // loader, not the "no longer available" text, until the fetch settles --
+    // otherwise that text flashes for a frame on the time->length step.
+    if (availabilityQuery.isFetching) return <SkeletonScreen step="Step 3 of 4" rows={3} />;
     // Stale or hand-edited link: the instant no longer matches a cell on
     // tonight's grid. Send the user back to pick a real start rather than
     // rendering a screen with nothing to recap.
@@ -1291,6 +1296,10 @@ function BookStationScreen() {
   // time grid -- DESIGN.md keeps "taken" for someone else's booking, so a
   // start that merely expired must not borrow that word.
   if (options.length === 0) {
+    // Same as the !startCell guard above: a refetch in flight can briefly
+    // yield zero length options for a start that is actually fine. Wait it
+    // out with the loader instead of flashing "booked/held by someone else".
+    if (availabilityQuery.isFetching) return <SkeletonScreen step="Step 3 of 4" rows={3} />;
     const state = startCellState(cells, search.start);
     const reason =
       state === CELL_STATES.PAST
