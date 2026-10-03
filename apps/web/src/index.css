@@ -365,53 +365,89 @@ body {
 }
 
 /* Console card art (round 6, "the Marquee"): a machine name plate. Solid
- * kind hue, the kind word bleeding off the left edge huge and clipped, a
- * hard cobalt ink rule along the bottom -- no wash, no fade, a loud opinion
- * instead of a softened one (playstop-design-direction). Decorative only,
+ * kind plate lifted toward chalk at one corner and shaded toward a
+ * kind-specific dark at the other, a machined highlight and lower edge, the
+ * kind word debossed and bleeding off the left, a hard cobalt rule along the
+ * bottom. Tokens only, no texture (DESIGN.md Imagery). Decorative only,
  * never a state; the words in the card body carry every state. Unavailable
- * cards desaturate and lose the ink rule. */
+ * cards desaturate and lose the rule, the edge shadows and the sim strip. */
 .art-band {
   position: relative;
   height: 6.5rem;
   flex: none;
   overflow: hidden;
-  background-color: var(--art-hue);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--art-hue) 88%, var(--color-chalk)) 0%,
+    var(--art-hue) 42%,
+    var(--art-shade) 100%
+  );
   border-bottom: 3px solid var(--color-brand);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-chalk) 32%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-pit-950) 22%, transparent);
   transition: filter 0.22s ease;
 }
 .dark .art-band {
   border-bottom-color: var(--color-brand-bright);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-chalk) 18%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-pit-950) 35%, transparent);
 }
 .art-word {
   position: absolute;
   top: 50%;
-  left: -0.35em;
+  left: -0.12em; /* first letter must survive the clip */
   transform: translateY(-50%);
   font-size: 8rem; /* decorative and clipped; exempt from the type scale */
   line-height: 1;
   letter-spacing: -0.03em;
-  color: color-mix(in srgb, var(--card) 28%, transparent);
+  color: color-mix(in srgb, var(--color-pit-950) 18%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--color-chalk) 22%, transparent);
   user-select: none;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.art-ps5 { --art-hue: var(--color-kind-ps5); }
-.art-ps2 { --art-hue: var(--color-kind-ps2); }
-.art-ps3 { --art-hue: var(--color-steel); }
-.art-racing-sim { --art-hue: var(--color-steel); }
+.art-ps5 {
+  --art-hue: var(--color-kind-ps5);
+  --art-shade: var(--color-kind-ps2);
+}
+.art-ps2 {
+  --art-hue: var(--color-kind-ps2);
+  --art-shade: color-mix(in srgb, var(--color-kind-ps2) 70%, var(--color-pit-950));
+  border-bottom-color: color-mix(in srgb, var(--color-brand) 55%, var(--color-pit-950));
+}
+.dark .art-ps2 {
+  border-bottom-color: var(--color-brand-bright);
+}
+.art-ps3 {
+  --art-hue: var(--color-steel);
+  --art-shade: var(--color-pit-700);
+}
+.art-racing-sim {
+  --art-hue: var(--color-steel);
+  --art-shade: var(--color-edge-dark);
+}
 .art-racing-sim::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background-image: repeating-conic-gradient(
-    color-mix(in srgb, var(--foreground) 5%, transparent) 0 25%,
-    transparent 0 50%
-  );
-  background-size: 12px 12px;
+  inset: 0 0 auto auto;
+  width: 58%;
+  height: 2rem;
+  background: repeating-conic-gradient(
+      color-mix(in srgb, var(--color-pit-950) 26%, transparent) 0 25%,
+      color-mix(in srgb, var(--color-chalk) 22%, transparent) 0 50%
+    )
+    0 0 / 12px 12px;
+  mask-image: linear-gradient(90deg, transparent, #000 45%);
 }
 .art-dimmed {
   filter: saturate(0);
-  opacity: 0.4;
+  opacity: 0.45;
   border-bottom: none;
+  box-shadow: none;
+}
+.art-dimmed::after {
+  display: none;
 }
 
 /* Motion (DESIGN.md budget). Everything sits behind the reduced-motion gate;

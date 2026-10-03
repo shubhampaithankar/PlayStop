@@ -130,7 +130,7 @@ Three faces by role, self-hosted (fontsource), subset to latin:
 Scale (px, mobile-first): 12 (fine print, the word "taken", the step counter), 14 (secondary
 lines), 16 (body, inputs, time buttons), 20 (console names on cards and recaps), 32 (screen
 titles), 60 (confirmation code). Line-height 1.5 body, 1.1 display. One decorative exception:
-the card art word (Saira 700 at 104px, clipped by the band, `aria-hidden`, never read as
+the card art word (Saira 700 at 128px, clipped by the band, `aria-hidden`, never read as
 text). No other font size outside this list.
 
 ## Spacing and Layout
@@ -215,17 +215,20 @@ CSS-generated console art, zero image assets. Real game artwork is publisher IP 
 cannot license for a booking page, and stock console photos read as a store listing. The art
 is a band across the top of each console card, built from tokens only:
 
-- A two-point hue wash, strong from the top-left and faint from the bottom-right: ps5
-  `--color-kind-ps5` (ice blue), ps2 `--color-kind-ps2` (cobalt), ps3 `--color-steel`. Sims
-  use steel plus a checkered-flag strip fading out to the right
-  (`repeating-conic-gradient`, neutrals only, no new hue). The band's lower half fades back
-  into the card so it belongs to the card instead of sitting on top of it.
-- The kind word ("PS5", "PS3", "PS2", "SIM") set enormous in Saira 700 (104px), clipped by
-  the band, at roughly 38% hue alpha. Pure decoration, `aria-hidden`; the real console name
-  sits in the card body below it.
+- A solid kind plate: ps5 `--color-kind-ps5` (ice blue), ps2 `--color-kind-ps2` (cobalt), ps3 and
+  sims `--color-steel`. A 135deg gradient lifts the top-left toward chalk and settles into a
+  kind-specific shade at the bottom-right: ps5 to cobalt, ps2 to deep cobalt, ps3 to
+  `--color-pit-700`, sim to `--color-edge-dark`. A 1px chalk highlight on top and a faint dark
+  edge below give it a machined lip. A 3px brand rule closes the bottom (ps2 darkens it so it
+  still reads against its own plate). Sims add a checkered-flag strip, top-right, 32px tall,
+  fading in from the left (`repeating-conic-gradient`, neutrals only, no new hue). No grain.
+- The kind word ("PS5", "PS3", "PS2", "SIM") set enormous in Saira 700 (128px), debossed
+  (dark 18% fill, one 1px chalk shadow below), bleeding off the left edge so the first letter
+  survives the clip. Pure decoration, `aria-hidden`; the real console name sits in the card
+  body below it.
 - These hues are decorative only. They are never green, red, or amber, and no state is ever
   expressed by hue. Words still carry every state; the band never needs decoding.
-- Unavailable cards render the band desaturated at 45% opacity and stay shadow-free.
+- Unavailable cards render the band desaturated at 45% opacity, shadow-free, with no rule and no sim strip.
 - If `nowPlaying` never gets an API field, the "Now playing" line is dropped and the card
   loses nothing structural: the band is the visual anchor, the game title is garnish.
 
