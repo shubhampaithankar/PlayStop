@@ -1165,6 +1165,14 @@ function BookStationScreen() {
   const search = bookStationRoute.useSearch();
   const [pendingHours, setPendingHours] = useState<number | null>(null);
   const [holdError, setHoldError] = useState<unknown>(null);
+  // pendingHours latches the length that advanced us to step 4 (and disables
+  // every length button to block a double-tap). This screen stays mounted
+  // across the step 3 <-> 4 search-param change, so returning to the length
+  // step (slots cleared, e.g. Back) must clear the latch or all the length
+  // buttons stay disabled and nothing re-picks.
+  useEffect(() => {
+    if (search.slots === undefined) setPendingHours(null);
+  }, [search.slots]);
   // A stable "now" for the too-soon (lead time) split below -- read once
   // per mount, not called directly during render (react-hooks/purity).
   const [nowMs] = useState(() => Date.now());
