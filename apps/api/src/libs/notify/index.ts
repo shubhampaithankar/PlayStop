@@ -15,9 +15,6 @@ const from = env.MESSAGE_FROM ?? "PlayStop";
 
 function logNotifier(channel: OtpChannel): Notifier {
   return {
-    // ponytail: log-only channel adapter; drop a provider client behind
-    // this interface when funded (Resend is out, free India SMS doesn't
-    // exist -- portfolio project ships mock delivery for both channels).
     async send(message: NotifyMessage): Promise<void> {
       console.log(
         JSON.stringify({

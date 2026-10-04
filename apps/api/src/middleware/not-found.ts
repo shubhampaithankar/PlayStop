@@ -1,9 +1,6 @@
 import type { Request, Response } from "express";
 import { ERROR_CODES, type ApiError } from "@playstop/engine";
 
-// Fires only when nothing above matched at all (an unknown route, not a
-// known-but-absent resource like an unknown venue slug, which raises its
-// own DomainError through the normal error handler).
 export function notFoundHandler(req: Request, res: Response): void {
   const requestId = req.locals?.requestId ?? "unknown";
   const body: ApiError = {

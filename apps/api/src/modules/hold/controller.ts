@@ -11,9 +11,8 @@ import {
 import { env } from "#env.js";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
-import { findStationById } from "#modules/venue/data.js";
-import { cellStartsForRange, resolveRange } from "#modules/venue/utils.js";
-import { acquireHold, findConfirmedClaimInRange, releaseHold } from "#modules/hold/data.js";
+import { cellStartsForRange, findStationById, resolveRange } from "#modules/venue/utils.js";
+import { acquireHold, findConfirmedClaimInRange, releaseHold } from "#modules/hold/utils.js";
 
 export async function createHold(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -36,8 +35,6 @@ export async function createHold(req: Request, res: Response): Promise<void> {
 
   const startsAtMs = new Date(startsAt).getTime();
   const nowMs = Date.now();
-  // A hold never covers a buffer: it is a server-side concept the client
-  // never sees and never holds.
   const { playMs } = resolveRange(venue, station, startsAtMs, slotCount, 0, nowMs);
 
   const existingClaim = await findConfirmedClaimInRange(venue._id, station._id, playMs);
@@ -87,15 +84,10 @@ export async function releaseHoldRoute(req: Request, res: Response): Promise<voi
   const { holdId, stationId, startsAt, slotCount } = parsed.data;
   const startsAtMs = new Date(startsAt).getTime();
 
-  // Release needs only the venue's grid, not the station document: cell
-  // timing doesn't depend on station attributes, only stationId for the key.
   let playMs: readonly number[];
   try {
     playMs = cellStartsForRange(venue, startsAtMs, slotCount);
   } catch {
-    // A range that was never a legal cell boundary was never a legal hold
-    // either. Release is idempotent by construction: "not holding this" is
-    // true either way, so this is a no-op 204, not an error.
     res.status(204).end();
     return;
   }

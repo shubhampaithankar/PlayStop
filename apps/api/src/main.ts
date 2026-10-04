@@ -1,7 +1,3 @@
-// DO NOT MOVE: must be the first import. Sentry.init (the side effect in
-// this module) patches http, express and the mongo driver, so anything
-// imported above this line is never instrumented. An import sorter would
-// happily alphabetize this away -- don't let it.
 import "#libs/sentry/index.js";
 import { connectMongo } from "#libs/mongo/index.js";
 import { createIndexes } from "#libs/mongo/indexes.js";
@@ -10,14 +6,9 @@ import { waitForRedisReady } from "#libs/redis/index.js";
 import { buildApp } from "#app.js";
 
 async function main(): Promise<void> {
-  // Index creation runs before the HTTP listener starts. A running API
-  // without uniq_slot_claim is a correctness hazard, so a failure here
-  // exits the process rather than serving traffic against an unsafe schema.
   await connectMongo();
   await createIndexes();
 
-  // Redis holds are advisory UX, never truth (section 4), so an unreachable
-  // Redis at boot degrades rather than blocking startup.
   try {
     await waitForRedisReady();
   } catch (err) {

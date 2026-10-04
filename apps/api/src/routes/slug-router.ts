@@ -5,9 +5,6 @@ import { holdRouter } from "#modules/hold/route.js";
 import { otpRouter } from "#modules/otp/route.js";
 import { venueRouter } from "#modules/venue/route.js";
 
-// Everything a venue owns, mounted under /venues/:venueSlug by index.ts.
-// mergeParams lets these module routers still read req.params.venueSlug
-// after being mounted under a parameterised path.
 export const slugRouter = Router({ mergeParams: true });
 
 slugRouter.use("/", venueRouter);

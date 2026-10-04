@@ -31,8 +31,6 @@ export function mongoClient(): MongoClient {
   return client;
 }
 
-// Shallow liveness ping for /health, and the mechanism that keeps Atlas's
-// 30-day auto-pause from firing on an otherwise-idle keepalive.
 export async function pingMongo(): Promise<void> {
   await requireDb().command({ ping: 1 });
 }

@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import type { ObjectId } from "mongodb";
 import {
   buildClaimCells,
   ERROR_CODES,
@@ -7,10 +8,9 @@ import {
   SlotOutOfWindowError,
   type VenueSchedule,
 } from "@playstop/engine";
-import type { StationDoc, VenueDoc } from "#libs/mongo/index.js";
+import { collections, type StationDoc, type VenueDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
-
-export type EngineVenueSchedule = VenueSchedule & { leadTimeMinutes: number; maxAdvanceDays: number };
+import type { EngineVenueSchedule, ResolvedCells } from "#types/venue.js";
 
 export function venueScheduleOf(venue: VenueDoc): EngineVenueSchedule {
   return {
@@ -28,10 +28,6 @@ export function localLabelOf(cellStartMs: number, timezone: string): string {
   return DateTime.fromMillis(cellStartMs, { zone: timezone }).toFormat("yyyy-MM-dd HH:mm ZZZZ");
 }
 
-// A legal cell's local calendar date is either the business date it opens
-// on, or the following date when the session crosses midnight (section 2).
-// Those are the only two possibilities for any cell, since a session is
-// capped at 24 hours, so trying both resolves which business date owns it.
 function businessDateOf(startsAtMs: number, schedule: VenueSchedule): string {
   const local = DateTime.fromMillis(startsAtMs, { zone: schedule.timezone });
   const candidates = [local.toISODate(), local.minus({ days: 1 }).toISODate()];
@@ -54,17 +50,6 @@ function businessDateOf(startsAtMs: number, schedule: VenueSchedule): string {
   );
 }
 
-interface ResolvedCells {
-  readonly businessDate: string;
-  readonly playMs: readonly number[];
-  readonly bufferMs: readonly number[];
-}
-
-/**
- * Grid + window validation shared by the hold and confirm routes (spec
- * section 4 step 7). bufferSlotCount is 0 for holds: the buffer is a
- * server-side concept the client never sees and never holds.
- */
 export function resolveRange(
   venue: VenueDoc,
   station: Pick<StationDoc, "maintenanceWindows">,
@@ -104,10 +89,6 @@ export function resolveRange(
     }
   }
 
-  // Same day-diff pattern as availability (availability/controller.ts), so
-  // a hold or confirm agrees with what the availability grid already showed
-  // as bookable. The -1 tolerance keeps a post-midnight tail cell of
-  // yesterday's session reachable, same as availability's gate.
   const localToday = DateTime.fromMillis(nowMs, { zone: schedule.timezone }).startOf("day");
   const cellLocalDate = DateTime.fromISO(businessDate, { zone: schedule.timezone }).startOf("day");
   const daysFromToday = cellLocalDate.diff(localToday, "days").days;
@@ -127,11 +108,6 @@ export function resolveRange(
   return { businessDate, playMs: cells.playMs, bufferMs: cells.bufferMs };
 }
 
-/**
- * Cell reconstruction only, no window/maintenance checks. Used by the
- * release route, which must resolve to "not holding this" rather than an
- * error for a malformed range: release is idempotent by construction.
- */
 export function cellStartsForRange(venue: VenueDoc, startsAtMs: number, slotCount: number): readonly number[] {
   const schedule = venueScheduleOf(venue);
   const businessDate = businessDateOf(startsAtMs, schedule);
@@ -141,4 +117,12 @@ export function cellStartsForRange(venue: VenueDoc, startsAtMs: number, slotCoun
   }
   const { playMs } = buildClaimCells(grid.cells, startsAtMs, slotCount, 0);
   return playMs;
+}
+
+export function findActiveStations(venueId: ObjectId): Promise<StationDoc[]> {
+  return collections.stations().find({ venueId, status: "active" }).toArray();
+}
+
+export function findStationById(stationId: ObjectId, venueId: ObjectId): Promise<StationDoc | null> {
+  return collections.stations().findOne({ _id: stationId, venueId, status: "active" });
 }

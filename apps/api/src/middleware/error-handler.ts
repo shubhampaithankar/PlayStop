@@ -2,10 +2,6 @@ import type { NextFunction, Request, Response } from "express";
 import { ERROR_CODES, type ApiError } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 
-// 4 params, registered last. Express 5 auto-forwards rejected promises
-// here, so no route needs a try/catch wrapper.
-// 4th param is required for Express to recognize this as error-handling
-// middleware, even though it is never called.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
   const requestId = req.locals?.requestId ?? "unknown";

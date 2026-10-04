@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { bookingResponseSchema, type BookingResponse, type CreateHoldResponse } from "@playstop/engine";
 import { collections } from "#libs/mongo/index.js";
-import { hashRequest } from "#modules/booking/idempotency.js";
+import { hashRequest } from "#modules/booking/utils.js";
 import {
   futureSessionCells,
   mintVerification,

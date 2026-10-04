@@ -10,8 +10,6 @@ declare global {
   }
 }
 
-// crypto.randomUUID() onto req.locals.requestId, echoed in the
-// X-Request-Id response header and inside every error body.
 export function requestId(req: Request, res: Response, next: NextFunction): void {
   const id = randomUUID();
   req.locals = { requestId: id };

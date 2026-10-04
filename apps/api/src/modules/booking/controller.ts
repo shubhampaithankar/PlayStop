@@ -12,24 +12,28 @@ import {
 import type { BookingDoc, SlotClaimDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
-import { findStationById } from "#modules/venue/data.js";
-import { resolveRange } from "#modules/venue/utils.js";
-import { mgetHolds, releaseHold } from "#modules/hold/data.js";
-import { deleteOtpChallenge, getOtpVerification } from "#modules/otp/data.js";
-import { generateConfirmationCode, toBookingPlayer, toBookingResponse } from "#modules/booking/utils.js";
-import { abandonClaim, claimIdempotency, finalizeFailure, hashRequest } from "#modules/booking/idempotency.js";
+import { findStationById, resolveRange } from "#modules/venue/utils.js";
+import { mgetHolds, releaseHold } from "#modules/hold/utils.js";
+import { deleteOtpChallenge, getOtpVerification } from "#modules/otp/utils.js";
 import {
+  abandonClaim,
+  claimIdempotency,
+  finalizeFailure,
   findBookingByConfirmationCode,
   findBookingById,
   findBookingStation,
   findBookingsByContact,
   findStationsByIds,
+  generateConfirmationCode,
+  hashRequest,
   notifyCancellation,
   notifyConfirmation,
   runCancelTransaction,
   runConfirmTransaction,
-  type BuiltConfirmDocs,
-} from "#modules/booking/data.js";
+  toBookingPlayer,
+  toBookingResponse,
+} from "#modules/booking/utils.js";
+import type { BuiltConfirmDocs } from "#types/booking.js";
 
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -57,10 +61,6 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   const idempotencyKey = keyParsed.data;
 
   const now = new Date();
-  // Idempotency identity is the booking content only. holdId and
-  // verificationId are per-attempt tokens: a retry re-holds and re-verifies
-  // with fresh ids, so hashing them would make a legitimate same-key retry
-  // look like a different request and wrongly return IDEMPOTENCY_KEY_REUSED.
   const { holdId: _idemHoldId, verificationId: _idemVerificationId, ...idempotencyIdentity } = body;
   const requestHash = hashRequest(idempotencyIdentity);
   const claim = await claimIdempotency(venue._id, idempotencyKey, requestHash, now);
@@ -97,8 +97,6 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     const bufferSlotCount = venue.bufferMinutes > 0 ? Math.ceil(venue.bufferMinutes / venue.gridMinutes) : 0;
     const { playMs, bufferMs } = resolveRange(venue, activeStation, startsAtMs, body.slotCount, bufferSlotCount, nowMs);
 
-    // Hold verification decision table (spec section 4 step 8). Only play
-    // cells are verified; buffer cells were never held.
     if (body.holdId !== undefined) {
       const { values, degraded } = await mgetHolds(venue._id, activeStation._id, playMs);
       if (!degraded) {
@@ -109,44 +107,18 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
           throw new DomainError(ERROR_CODES.HOLD_EXPIRED, 410, "That hold has expired.");
         }
       }
-      // degraded: proceed. Redis being down must never block a booking.
     }
 
-    // OTP gate (spec section 1): required on EVERY confirm now, decoupled
-    // from holdId. Unlike the hold check above, this does NOT degrade
-    // open -- a deliberate availability tradeoff, documented in
-    // docs/conventions/booking-correctness.md: OTP verification is a real
-    // Redis dependency, so Redis being down blocks new bookings here.
     const { value: verification, degraded: otpDegraded } = await getOtpVerification(venue._id, body.verificationId);
     if (otpDegraded) {
       throw new DomainError(ERROR_CODES.OTP_REQUIRED, 403, "OTP verification is temporarily unavailable.");
     }
     if (verification === null) {
-      // Redis reachable but the key is gone: either the TTL expired, or a
-      // previous confirm attempt already deleted it (deleteOtpChallenge
-      // below runs post-commit, fire-and-forget).
       throw new DomainError(ERROR_CODES.OTP_EXPIRED, 410, "That verification has expired or was already used.");
     }
     if (!verification.verified) {
       throw new DomainError(ERROR_CODES.OTP_REQUIRED, 403, "Verification is required before confirming.");
     }
-    // No client-submitted contact to compare against (section 2: contact is
-    // never sent on the booking request, only copied from this record onto
-    // the booking below), so there is nothing left to check here beyond
-    // verified + not-expired.
-    // Real guarantee, not strict one-shot: deleteOtpChallenge below runs
-    // post-commit, fire-and-forget (a lost cell race must not burn the
-    // code), so this gate is "verified, best-effort consumed" rather than
-    // "verified and not yet consumed". Within the 10-minute TTL, a verified
-    // id can pass this gate again before its delete lands or if the delete
-    // itself failed; a second confirm on it is bounded only by this
-    // contact-match design and the uniq_slot_claim arbiter at commit.
-    // ponytail: best-effort delete, not an atomic consume. Upgrade path if
-    // strict one-shot is ever needed: consume inside the otpVerify Lua (or
-    // a new gate-and-consume script) instead of a separate post-commit DEL.
-    // Narrowed into plain locals: TS does not retain the null-narrowing of
-    // a captured const across the nested buildDocs() function declaration
-    // below.
     const contactChannel = verification.channel;
     const contact = verification.contact;
 
@@ -154,8 +126,6 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     const endsAtMs = startsAtMs + body.slotCount * stride;
     const totalMinor = priceBooking(activeStation, venue.gridMinutes, body.slotCount);
 
-    // Build first, write second: withTransaction may run its callback more
-    // than once, so every document is built before the transaction starts.
     function buildDocs(): BuiltConfirmDocs {
       const bookingId = new ObjectId();
       const confirmationCode = generateConfirmationCode();
@@ -210,9 +180,6 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
 
     const { responseBody } = await runConfirmTransaction(idemId, buildDocs);
 
-    // Fire-and-forget: errors ignored, the TTL is the backstop. Retries
-    // replay via idempotency above resolveRange, so they never re-hit the
-    // OTP gate -- deleting it here is safe.
     if (body.holdId !== undefined) {
       releaseHold(venue._id, activeStation._id, playMs, body.holdId).catch(() => {});
     }
@@ -223,15 +190,6 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
 
     res.status(201).json(responseBody);
   } catch (err) {
-    // Deterministic domain failure (404/409/410/422): replayable, record
-    // stays. Non-deterministic infra failure (503/500, or anything not a
-    // DomainError): delete, so the client can retry the same key.
-    // OTP_REQUIRED (403) and OTP_EXPIRED (410) are both exceptions: neither
-    // is infra failure, but neither is deterministic across retries with
-    // the same key either -- the client is expected to re-verify and retry,
-    // and a persisted failed replay (verificationId isn't part of the
-    // idempotency hash) would make that retry with the same
-    // Idempotency-Key impossible, replaying the same stale failure forever.
     if (
       err instanceof DomainError &&
       err.status !== 503 &&
@@ -288,7 +246,6 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   const station = await findBookingStation(booking.stationId);
   if (!station) throw new Error("station referenced by booking not found");
 
-  // Idempotent: already cancelled returns 200 with the record as-is.
   if (booking.status === "cancelled") {
     res.status(200).json(toBookingResponse(booking, station.name, station.kind, venue.timezone));
     return;
@@ -318,11 +275,6 @@ export async function cancelBooking(req: Request, res: Response): Promise<void> 
   res.status(200).json(toBookingResponse(finalBooking, station.name, station.kind, venue.timezone));
 }
 
-// Read-only: no writes, no slot_claims, no transaction. The contact comes
-// ONLY from the verified OTP record, never from the client, so knowing
-// someone's contact is not enough to list their bookings. Fails closed
-// when Redis is down (inherits the OTP gate). The challenge is not
-// deleted: the same verificationId may be reused within its TTL.
 export async function lookupBookings(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
   const parsed = lookupBookingsRequestSchema.safeParse(req.body);
@@ -346,7 +298,6 @@ export async function lookupBookings(req: Request, res: Response): Promise<void>
   const stationsById = new Map(stationDocs.map((s) => [s._id.toHexString(), s]));
   const bookings = bookingDocs.flatMap((b) => {
     const station = stationsById.get(b.stationId.toHexString());
-    // A booking whose station doc is gone cannot be rendered: skip it, do not fail the list.
     return station ? [toBookingResponse(b, station.name, station.kind, venue.timezone)] : [];
   });
   res.status(200).json({ bookings });

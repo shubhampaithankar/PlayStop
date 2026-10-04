@@ -4,17 +4,16 @@ import { env } from "#env.js";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
 import { notifyFor } from "#libs/notify/index.js";
+import { OTP_REQUEST_CAP, OTP_TTL_MS } from "#modules/otp/constants.js";
 import {
   generateMockCode,
   hashOtpCode,
   incrementOtpRequestCount,
   mintVerificationId,
-  OTP_REQUEST_CAP,
-  OTP_TTL_MS,
   otpCapPttlMs,
   verifyOtpCode,
   writeOtpChallenge,
-} from "#modules/otp/data.js";
+} from "#modules/otp/utils.js";
 
 function contactValue(contact: { channel: "email"; email: string } | { channel: "sms"; phone: string }): string {
   return contact.channel === "email" ? contact.email : contact.phone;
@@ -58,9 +57,6 @@ export async function requestOtp(req: Request, res: Response): Promise<void> {
     throw new DomainError(ERROR_CODES.OTP_REQUIRED, 403, "OTP verification is temporarily unavailable.");
   }
 
-  // Fire-and-forget: the mock send is logged so the delivery path is
-  // exercised, but a notifier failure must never fail the OTP request --
-  // the devCode below (MOCK_OTP) is the real path a developer uses anyway.
   notifyFor(contact.channel)
     .send({ to: contactStr, subject: "Your PlayStop verification code", text: `Your code is ${code}. It expires in 10 minutes.` })
     .catch(() => {});
@@ -90,9 +86,6 @@ export async function verifyOtp(req: Request, res: Response): Promise<void> {
     throw new DomainError(ERROR_CODES.OTP_EXPIRED, 410, "That code has expired.");
   }
   if (outcome === "TOOMANY") {
-    // ponytail: no Retry-After header here -- attempts never reset without
-    // a new /otp/request, so any fixed value would be fictional. Add one
-    // once there's a real reset condition (e.g. attempts tied to the TTL).
     throw new DomainError(ERROR_CODES.OTP_TOO_MANY, 429, "Too many attempts.");
   }
   if (outcome === "INVALID") {

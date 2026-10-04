@@ -2,24 +2,13 @@ import type { ObjectId } from "mongodb";
 import { env } from "#env.js";
 import { collections, type SlotClaimDoc } from "#libs/mongo/index.js";
 import { redis, tryRedis } from "#libs/redis/index.js";
+import { HOLD_KEY_PATTERN } from "#modules/hold/constants.js";
+import type { HeldCell } from "#types/hold.js";
 
-// ps:{env}:{venueId}:hold:{stationId}:{cellStartEpochMs}. Every key on this
-// namespace goes through this function; no route builds a key by string
-// concatenation. This is the Redis-side equivalent of "every query filters
-// on venueId".
 export function holdKey(venueId: ObjectId, stationId: ObjectId, cellStartMs: number): string {
   return `ps:${env.APP_ENV}:${venueId.toHexString()}:hold:${stationId.toHexString()}:${cellStartMs}`;
 }
 
-export interface HeldCell {
-  readonly stationId: string;
-  readonly cellStartMs: number;
-}
-
-const HOLD_KEY_PATTERN = /^ps:[^:]+:[0-9a-f]{24}:hold:([0-9a-f]{24}):(\d+)$/;
-
-// ponytail: SCAN over a small keyspace; switch to a per-venue-day SET index
-// if concurrent holds exceed ~1k (spec section 4).
 export async function scanVenueHolds(venueId: ObjectId): Promise<{ holds: HeldCell[]; degraded: boolean }> {
   const pattern = `ps:${env.APP_ENV}:${venueId.toHexString()}:hold:*`;
   const { value, degraded } = await tryRedis(async () => {
@@ -40,12 +29,6 @@ export async function scanVenueHolds(venueId: ObjectId): Promise<{ holds: HeldCe
   return { holds: value, degraded };
 }
 
-/**
- * All-or-nothing acquire across every cell in the range (the Lua script in
- * redis.ts). degraded means Redis was unreachable (caller maps to 503
- * HOLD_UNAVAILABLE); acquired=false with degraded=false means the script
- * genuinely found a taken cell (caller maps to 409 SLOT_HELD).
- */
 export async function acquireHold(
   venueId: ObjectId,
   stationId: ObjectId,
@@ -58,10 +41,6 @@ export async function acquireHold(
   return { acquired: value === 1, degraded };
 }
 
-// Compare-and-delete per cell. Fire-and-forget at the confirm callsite: a
-// failure here just leaves the TTL as the backstop. Explicit release
-// returns 204 regardless of degraded/acquired: "not holding this" is true
-// either way.
 export async function releaseHold(
   venueId: ObjectId,
   stationId: ObjectId,
@@ -72,11 +51,6 @@ export async function releaseHold(
   await tryRedis(() => redis.holdRelease(keys.length, ...keys, holdId), 0);
 }
 
-/**
- * MGET across every play-cell key. Returns the raw array (positions match
- * cellStartsMs) plus degraded; callers apply the decision table themselves,
- * since the correct action differs between routes.
- */
 export async function mgetHolds(
   venueId: ObjectId,
   stationId: ObjectId,
@@ -87,8 +61,6 @@ export async function mgetHolds(
   return { values: value, degraded };
 }
 
-// Courtesy check, not a lock: an accurate error for the common case before
-// touching Redis. The real backstop is uniq_slot_claim at confirm.
 export function findConfirmedClaimInRange(
   venueId: ObjectId,
   stationId: ObjectId,

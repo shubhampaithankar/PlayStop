@@ -11,9 +11,9 @@ import {
 } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
-import { scanVenueHolds } from "#modules/hold/data.js";
+import { scanVenueHolds } from "#modules/hold/utils.js";
 import { venueScheduleOf } from "#modules/venue/utils.js";
-import { findConfirmedClaims, findStationsForAvailability } from "#modules/availability/data.js";
+import { findConfirmedClaims, findStationsForAvailability } from "#modules/availability/utils.js";
 
 export async function getAvailability(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -24,8 +24,6 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   const { date, stationId, kind } = parsed.data;
   const schedule = venueScheduleOf(venue);
 
-  // Coarse gate on the whole business date; computeAvailability separately
-  // marks individual cells past/too_far_ahead at cell precision.
   const localToday = DateTime.now().setZone(venue.timezone).startOf("day");
   const requestedDate = DateTime.fromISO(date, { zone: venue.timezone }).startOf("day");
   const daysFromToday = requestedDate.diff(localToday, "days").days;
@@ -55,8 +53,6 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   let holdCells: OccupiedCell[] = [];
   let degraded = false;
 
-  // Closed venue: no cells exist, so the Mongo and Redis reads are skipped
-  // entirely (spec section 2); windowStartMs/windowEndMs are informational.
   if (grid.kind === "open") {
     claims = await findConfirmedClaims(venue._id, grid.windowStartMs, grid.windowEndMs);
 

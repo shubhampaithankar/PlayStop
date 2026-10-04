@@ -21,13 +21,11 @@ interface StationSeed {
   kind: StationDoc["kind"];
   count: number;
   capacity: number;
-  hourlyRateMinor: number; // must satisfy (rate * GRID_MINUTES) % 60 === 0
+  hourlyRateMinor: number;
   minSlots: number;
   maxSlots: number;
 }
 
-// 7 x PS5, 3 x PS3, 2 x PS2, 3 x racing sim, 15 total. Rates are flat
-// hourly per station (section 11: no peak pricing in this milestone).
 const STATION_KINDS: readonly StationSeed[] = [
   { slugPrefix: "ps5", label: "PS5", kind: "ps5", count: 7, capacity: 4, hourlyRateMinor: 15_000, minSlots: 2, maxSlots: 8 },
   { slugPrefix: "ps3", label: "PS3", kind: "ps3", count: 3, capacity: 3, hourlyRateMinor: 10_000, minSlots: 2, maxSlots: 8 },
@@ -77,8 +75,6 @@ const MAIN_VENUE: VenueSeed = {
   slug: "playstop-laxminagar",
   name: "PlayStop Laxminagar",
   timezone: "Asia/Kolkata",
-  // 14:00 to 02:00: exercises the midnight-crossing path in manual
-  // testing, not only in unit tests.
   openingHours: allWeek("14:00", "02:00"),
   bufferMinutes: 0,
   currency: "INR",
@@ -87,9 +83,6 @@ const MAIN_VENUE: VenueSeed = {
   blackoutDates: [],
 };
 
-// Behind --with-dst-venue only, so DST can be poked at by hand as well as
-// in unit tests. No stations: this venue exists to exercise the grid, not
-// the booking flow.
 const DST_VENUE: VenueSeed = {
   slug: "playstop-dst-test",
   name: "PlayStop DST Test (New York)",
@@ -102,7 +95,6 @@ const DST_VENUE: VenueSeed = {
   blackoutDates: [],
 };
 
-// Upsert on slug, idempotent by construction.
 async function upsertVenue(seed: VenueSeed): Promise<ObjectId> {
   const now = new Date();
   const venue = await collections.venues().findOneAndUpdate(
@@ -127,7 +119,6 @@ async function upsertVenue(seed: VenueSeed): Promise<ObjectId> {
   return venue._id;
 }
 
-// Upsert on (venueId, slug), idempotent by construction.
 async function upsertStation(venueId: ObjectId, input: StationInput): Promise<void> {
   const now = new Date();
   await collections.stations().findOneAndUpdate(
@@ -148,27 +139,16 @@ async function upsertStation(venueId: ObjectId, input: StationInput): Promise<vo
   );
 }
 
-// ---------------------------------------------------------------------------
-// Demo availability states. Anchored to "today" in the venue timezone on every
-// run, so a reseed always lands in the running week. Bookings go through the
-// same shape and the same all-or-nothing transaction as createBooking, so the
-// uniq_slot_claim index stays the arbiter: this never bypasses it.
-// ---------------------------------------------------------------------------
-
-// Station that is retired: renders as the "unavailable" ghost card.
 const DEMO_RETIRED_SLUG = "ps3-3";
-// Station with a maintenance window tomorrow evening: "being fixed" cells.
 const DEMO_MAINTENANCE = { slug: "ps5-3", dayOffset: 1, firstCellIndex: 12, cellCount: 6 };
 
 interface DemoBookingRange {
   stationSlug: string;
-  dayOffset: number; // 0 = today's business date, 1 = tomorrow
-  firstCellIndex: number; // index into that day's grid (0 = opening)
-  cellCount: number; // split into bookings of at most station.maxSlots
+  dayOffset: number;
+  firstCellIndex: number;
+  cellCount: number;
 }
 
-// 24 cells in a 14:00 to 02:00 day. ps2-1 is full tomorrow (booked_out);
-// ps2-2 is full except the last two cells (free_from 01:00 = near-full).
 const DEMO_BOOKING_RANGES: readonly DemoBookingRange[] = [
   { stationSlug: "ps5-1", dayOffset: 0, firstCellIndex: 10, cellCount: 4 },
   { stationSlug: "ps5-2", dayOffset: 0, firstCellIndex: 10, cellCount: 3 },
@@ -177,8 +157,6 @@ const DEMO_BOOKING_RANGES: readonly DemoBookingRange[] = [
   { stationSlug: "ps2-2", dayOffset: 1, firstCellIndex: 0, cellCount: 22 },
 ];
 
-// Same alphabet and length as generateConfirmationCode, but derived from the
-// slot so a reseed finds the booking it already made.
 function demoConfirmationCode(stationSlug: string, startsAtIso: string): string {
   return confirmationCodeFromBytes(createHash("sha256").update(`${stationSlug}|${startsAtIso}`).digest().subarray(0, 10));
 }
@@ -191,16 +169,12 @@ async function seedDemoData(venueId: ObjectId): Promise<void> {
   const stationBySlug = new Map(stations.map((station) => [station.slug, station]));
 
   const today = DateTime.now().setZone(venue.timezone).startOf("day");
-  // ponytail: before 02:00 local, "today" is a day ahead of the session still
-  // open. Fine for demo data (seeded rows are simply a few cells later).
   const gridOf = (dayOffset: number) => {
     const grid = generateSlotGrid(schedule, today.plus({ days: dayOffset }).toFormat("yyyy-MM-dd"));
     if (grid.kind !== "open") throw new Error(`venue is closed on demo day +${dayOffset}`);
     return grid;
   };
 
-  // Retired station (ghost card) and maintenance window (being-fixed cells).
-  // Always re-set, so a reseed moves the window into the current week.
   await collections
     .stations()
     .updateOne({ venueId, slug: DEMO_RETIRED_SLUG }, { $set: { status: "retired" } });
@@ -253,7 +227,7 @@ async function seedDemoData(venueId: ObjectId): Promise<void> {
           startsAt: new Date(startCell.cellStartMs),
           endsAt: new Date(startCell.cellStartMs + slotCount * venue.gridMinutes * 60_000),
           slotCount,
-          bufferSlotCount: 0, // ponytail: MAIN_VENUE bufferMinutes is 0; buildClaimCells would return bufferMs otherwise
+          bufferSlotCount: 0,
           partySize: 2,
           status: "confirmed",
           confirmationCode,
@@ -283,9 +257,6 @@ async function seedDemoData(venueId: ObjectId): Promise<void> {
           createdAt: now,
         }));
 
-        // All cells or none. A real booking already holding one of these
-        // cells makes the insert throw 11000 (uniq_slot_claim); the seed
-        // fails loudly rather than skipping the index.
         await session.withTransaction(
           async () => {
             await collections.bookings().insertOne(bookingDoc, { session });
@@ -320,7 +291,6 @@ async function main(): Promise<void> {
 
   const stationInputs = buildStationInputs();
   const mainVenueId = await seedVenueWithStations(MAIN_VENUE, stationInputs);
-  // Default on, so a fresh or prod reseed shows every availability state.
   if (!process.argv.includes("--no-demo-data")) await seedDemoData(mainVenueId);
 
   if (withDstVenue) {
