@@ -107,13 +107,15 @@ export function readAttempt(): BookingAttempt | null {
 }
 
 /** The range this tab holds right now, for availability's owner-aware view
- *  (freeOwnHeldCells). Null in degraded mode (no hold) or with no attempt.
- *  ponytail: an expired hold is not filtered out; the cell then reads free
- *  until the next refetch and the arbiter decides at hold time anyway. */
+ *  (freeOwnHeldCells). Null in degraded mode (no hold), with no attempt, or
+ *  once the hold's TTL has lapsed: an expired hold no longer owns its cells,
+ *  so the view must stop freeing them (another player may now hold them). The
+ *  arbiter is still the backstop at hold time; this only keeps the optimistic
+ *  view honest. */
 export function ownHoldOf(attempt: BookingAttempt | null) {
-  return attempt?.hold
-    ? { stationId: attempt.stationId, startsAt: attempt.startsAt, slotCount: attempt.slotCount }
-    : null;
+  if (!attempt?.hold) return null;
+  if (Date.parse(attempt.hold.expiresAt) <= Date.now()) return null;
+  return { stationId: attempt.stationId, startsAt: attempt.startsAt, slotCount: attempt.slotCount };
 }
 
 export function writeAttempt(attempt: BookingAttempt): void {
