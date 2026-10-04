@@ -26,15 +26,15 @@ export interface OccupiedCell {
 export interface AvailabilityInput {
   readonly venue: VenueSchedule & { readonly leadTimeMinutes: number; readonly maxAdvanceDays: number };
   readonly businessDate: string;
-  readonly stations: readonly StationInput[]; // caller passes ACTIVE stations only
-  readonly claims: readonly OccupiedCell[]; // confirmed slot_claims, from Mongo
-  readonly holds: readonly OccupiedCell[]; // from Redis; empty array when Redis is degraded
+  readonly stations: readonly StationInput[];
+  readonly claims: readonly OccupiedCell[];
+  readonly holds: readonly OccupiedCell[];
   readonly nowMs: number;
 }
 
 export interface AvailabilityCell {
   readonly stationId: string;
-  readonly startsAt: string; // ISO 8601 UTC
+  readonly startsAt: string;
   readonly endsAt: string;
   readonly localLabel: string;
   readonly state: CellState;

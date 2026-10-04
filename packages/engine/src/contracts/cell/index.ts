@@ -7,8 +7,8 @@ export const cellStateSchema = z.nativeEnum(CELL_STATES);
 
 export const availabilityCellSchema = z.object({
   stationId: objectIdSchema,
-  startsAt: isoInstantSchema, // THE IDENTITY, send this back verbatim
+  startsAt: isoInstantSchema,
   endsAt: isoInstantSchema,
-  localLabel: z.string(), // display only, never sent back
+  localLabel: z.string(),
   state: cellStateSchema,
 }) satisfies z.ZodType<AvailabilityCell>;

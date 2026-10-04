@@ -29,11 +29,11 @@ const playerSchema = z.object({
 
 export const createBookingRequestSchema = z.object({
   stationId: objectIdSchema,
-  startsAt: isoInstantSchema, // must be a grid cell start
-  slotCount: z.number().int().min(SLOT_COUNT_MIN).max(SLOT_COUNT_MAX), // station bound minSlots..maxSlots checked server-side
+  startsAt: isoInstantSchema,
+  slotCount: z.number().int().min(SLOT_COUNT_MIN).max(SLOT_COUNT_MAX),
   partySize: z.number().int().min(PARTY_SIZE_MIN).max(PARTY_SIZE_MAX),
-  holdId: z.string().uuid().optional(), // absence is legal, see section 4
-  verificationId: z.string().uuid(), // required: OTP verification gates every confirm
+  holdId: z.string().uuid().optional(),
+  verificationId: z.string().uuid(),
   player: playerSchema,
 });
 
@@ -49,16 +49,12 @@ export const bookingResponseSchema = z.object({
   endsAt: isoInstantSchema,
   slotCount: z.number().int(),
   partySize: z.number().int(),
-  localLabel: z.string(), // label of the first cell
+  localLabel: z.string(),
   status: z.nativeEnum(BOOKING_STATUSES),
   confirmationCode: confirmationCodeSchema,
   totalMinor: z.number().int(),
   currency: z.string(),
   player: playerSchema,
-  // Nullable, not required: bookings written before the OTP milestone
-  // predate these fields entirely, so a legacy document has neither. New
-  // bookings always set both (booking/controller.ts); null here only ever
-  // reflects that pre-existing gap, never a new write.
   contactChannel: z.enum(["email", "sms"]).nullable(),
   contact: z.string().nullable(),
   createdAt: isoInstantSchema,

@@ -14,11 +14,11 @@ export const createHoldResponseSchema = z.object({
   holdId: z.string().uuid(),
   stationId: objectIdSchema,
   startsAt: isoInstantSchema,
-  endsAt: isoInstantSchema, // startsAt + slotCount * gridMinutes
+  endsAt: isoInstantSchema,
   slotCount: z.number().int(),
   expiresAt: isoInstantSchema,
   ttlSeconds: z.number().int(),
-  quoteMinor: z.number().int(), // informational; confirm recomputes and is authoritative
+  quoteMinor: z.number().int(),
   currency: z.string(),
 });
 

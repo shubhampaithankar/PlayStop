@@ -1,4 +1,3 @@
-// Crockford base32, no ambiguous glyphs (I, L, O, U excluded).
 const CONFIRMATION_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{10}$/;
 
 const PLAYER_NAME_MIN_LENGTH = 1;
@@ -9,7 +8,7 @@ const PLAYER_PHONE_MAX_LENGTH = 32;
 const PLAYER_PHONE_PATTERN = /^[+0-9 ()-]+$/;
 
 const PARTY_SIZE_MIN = 1;
-const PARTY_SIZE_MAX = 8; // station bound 1..capacity checked server-side
+const PARTY_SIZE_MAX = 8;
 
 export { BOOKING_STATUSES } from "@playstop/types";
 

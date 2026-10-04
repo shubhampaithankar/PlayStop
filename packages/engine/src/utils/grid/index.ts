@@ -37,17 +37,10 @@ export class SlotOutOfWindowError extends Error {
 type WeekdayKey = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 
 function weekdayKeyOf(businessDate: string, timezone: string): WeekdayKey {
-  // Luxon DateTime.weekday is 1 (Monday) through 7 (Sunday). openingHours is
-  // keyed 0 (Sunday) through 6 (Saturday), so % 7 maps Sunday to "0".
   const luxonWeekday = DateTime.fromISO(businessDate, { zone: timezone }).weekday;
   return String(luxonWeekday % 7) as WeekdayKey;
 }
 
-// Opening time takes the EARLIEST candidate, closing time takes the LATEST.
-// This maximizes the open window ("we are open from 2pm until 2am, whatever
-// the clock does in between"). Luxon documents fall-back resolution as
-// undefined by default, so this is decided explicitly via
-// getPossibleOffsets() rather than relied upon.
 function resolveInstant(local: DateTime, boundary: "earliest" | "latest"): number {
   const candidates = local.getPossibleOffsets();
   const chosen = boundary === "earliest" ? candidates[0] : candidates[candidates.length - 1];
@@ -57,14 +50,6 @@ function resolveInstant(local: DateTime, boundary: "earliest" | "latest"): numbe
   return chosen.toMillis();
 }
 
-/**
- * For a requested business date and venue, resolves the session boundaries
- * and emits the 30-minute cell grid. A business day is the session that
- * OPENS on the local calendar date `businessDate`; a session whose close is
- * on-or-before its open (as wall-clock strings) runs past local midnight and
- * every cell in it, including the post-midnight tail, belongs to this
- * business date.
- */
 export function generateSlotGrid(venue: VenueSchedule, businessDate: string): GridResult {
   if (venue.gridMinutes <= 0 || MINUTES_PER_HOUR % venue.gridMinutes !== 0) {
     throw new InvalidGridMinutesError(
@@ -74,9 +59,6 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
 
   const midnightD = DateTime.fromISO(businessDate, { zone: venue.timezone }).startOf("day");
   const midnightD1 = midnightD.plus({ days: 1 });
-  // Closed responses (any reason) report local midnight D to D+1. The caller
-  // skips the Mongo read entirely when closed, so these values are
-  // informational only.
   const closedWindowStartMs = midnightD.toMillis();
   const closedWindowEndMs = midnightD1.toMillis();
 
@@ -102,11 +84,6 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
   const openLocal = DateTime.fromISO(`${businessDate}T${hours.open}`, { zone: venue.timezone });
   let closeLocal = DateTime.fromISO(`${businessDate}T${hours.close}`, { zone: venue.timezone });
 
-  // Compare the wall-clock strings, not the resolved instants: this is a
-  // lexicographic (== numeric, zero-padded HH:MM) comparison decided before
-  // any zone math can perturb it. The roll is calendar-aware (`plus({ days:
-  // 1 })`), never elapsed-time (`plus({ hours: 24 })`), so a closing time
-  // that reads "2am" still reads "2am" on a DST night.
   if (hours.close <= hours.open) {
     closeLocal = closeLocal.plus({ days: 1 });
   }
@@ -130,10 +107,6 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
     };
   }
 
-  // Real-time arithmetic on epoch milliseconds, never local-time arithmetic.
-  // Stepping by elapsed milliseconds from a single resolved anchor cannot
-  // produce a nonexistent cell on spring-forward or a duplicate cell on
-  // fall-back, because it never constructs an intermediate local time.
   const cells: GridCell[] = [];
   for (let t = openInstant; t + stride <= closeInstant; t += stride) {
     cells.push({
@@ -151,12 +124,6 @@ export function generateSlotGrid(venue: VenueSchedule, businessDate: string): Gr
   };
 }
 
-/**
- * Splits a booking's range into play and buffer cells, reading boundaries
- * from the grid array rather than recomputing them: on a DST night the grid
- * is not a uniform arithmetic sequence in local terms, and the grid array is
- * the only artifact that knows where the real cell boundaries are.
- */
 export function buildClaimCells(
   grid: readonly GridCell[],
   startsAtMs: number,
@@ -168,7 +135,7 @@ export function buildClaimCells(
     throw new SlotNotOnGridError(`${startsAtMs} does not match any grid cell start`);
   }
 
-  const playEndIndex = startIndex + slotCount; // exclusive
+  const playEndIndex = startIndex + slotCount;
   if (playEndIndex > grid.length) {
     throw new SlotOutOfWindowError("booking would extend past closing");
   }

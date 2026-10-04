@@ -17,7 +17,6 @@ function occupiedKey(stationId: string, cellStartMs: number): string {
   return `${stationId}:${cellStartMs}`;
 }
 
-// State precedence, applied in this exact order: first match wins.
 function resolveCellState(
   cell: GridCell,
   station: StationInput,
@@ -36,9 +35,6 @@ function resolveCellState(
   if (inMaintenance) return CELL_STATES.MAINTENANCE;
 
   const key = occupiedKey(station.stationId, cell.cellStartMs);
-  // Booked ranks above held: if both exist for the same cell (a hold that
-  // was confirmed but whose release lost a race), the truthful answer is
-  // "booked".
   if (claimed.has(key)) return CELL_STATES.BOOKED;
   if (held.has(key)) return CELL_STATES.HELD;
   return CELL_STATES.FREE;

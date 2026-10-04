@@ -2,16 +2,11 @@ import type { ObjectId } from "mongodb";
 import type { StationKind } from "../station-kind/index.js";
 import type { BookingStatus } from "../booking-status/index.js";
 
-// Mongo document shapes, per docs/milestone-2-spec.md section 1. These are
-// the on-disk documents, not the wire contracts in packages/engine's
-// schemas: the spec keeps network schemas and Mongo documents deliberately
-// separate.
-
 export type Weekday = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 
 export interface OpeningHoursDay {
-  readonly open: string; // "HH:MM" local wall-clock
-  readonly close: string; // "HH:MM"; close <= open means the session crosses midnight
+  readonly open: string;
+  readonly close: string;
 }
 
 export type OpeningHours = Readonly<Record<Weekday, OpeningHoursDay | null>>;
@@ -20,12 +15,12 @@ export interface VenueDoc {
   _id: ObjectId;
   slug: string;
   name: string;
-  timezone: string; // IANA
+  timezone: string;
   gridMinutes: number;
   bufferMinutes: number;
-  currency: string; // ISO 4217
+  currency: string;
   openingHours: OpeningHours;
-  blackoutDates: string[]; // "YYYY-MM-DD", local business dates
+  blackoutDates: string[];
   leadTimeMinutes: number;
   maxAdvanceDays: number;
   createdAt: Date;
@@ -34,7 +29,7 @@ export interface VenueDoc {
 export type StationStatus = "active" | "retired";
 
 export interface MaintenanceWindow {
-  startsAt: Date; // UTC instant, half-open [start, end)
+  startsAt: Date;
   endsAt: Date;
 }
 
@@ -46,7 +41,7 @@ export interface StationDoc {
   kind: StationKind;
   status: StationStatus;
   capacity: number;
-  hourlyRateMinor: number; // integer minor units of the venue's currency
+  hourlyRateMinor: number;
   minSlots: number;
   maxSlots: number;
   maintenanceWindows: MaintenanceWindow[];
@@ -63,24 +58,24 @@ export interface BookingDoc {
   _id: ObjectId;
   venueId: ObjectId;
   stationId: ObjectId;
-  startsAt: Date; // UTC instant, first play cell's start
-  endsAt: Date; // startsAt + slotCount * gridMinutes, exclusive, play only
+  startsAt: Date;
+  endsAt: Date;
   slotCount: number;
   bufferSlotCount: number;
   partySize: number;
   status: BookingStatus;
-  confirmationCode: string; // 10-char Crockford base32
+  confirmationCode: string;
   totalMinor: number;
   currency: string;
   player: BookingPlayer;
-  contactChannel: "email" | "sms"; // authoritative from the OTP verification record, never client-submitted
+  contactChannel: "email" | "sms";
   contact: string;
   idempotencyKey: string;
   createdAt: Date;
   cancelledAt: Date | null;
   confirmationSentAt: Date | null;
   cancellationSentAt: Date | null;
-  nudgeSentAt: Date | null; // design-only for now (spec section 3); always null until the nudge sweep is built
+  nudgeSentAt: Date | null;
 }
 
 export type ClaimKind = "play" | "buffer";
@@ -91,7 +86,7 @@ export interface SlotClaimDoc {
   venueId: ObjectId;
   stationId: ObjectId;
   bookingId: ObjectId;
-  cellStart: Date; // UTC instant, aligned to the venue grid: CELL IDENTITY
+  cellStart: Date;
   kind: ClaimKind;
   status: ClaimStatus;
   createdAt: Date;
@@ -100,14 +95,14 @@ export interface SlotClaimDoc {
 export type IdempotencyState = "in_flight" | "completed" | "failed";
 
 export interface IdempotencyDoc {
-  _id: string; // `${venueId}:${idempotencyKey}`
+  _id: string;
   venueId: ObjectId;
   key: string;
-  requestHash: string; // sha256 hex of canonical JSON of the validated body
+  requestHash: string;
   state: IdempotencyState;
   statusCode?: number;
   response?: unknown;
   bookingId?: ObjectId;
   createdAt: Date;
-  expiresAt: Date; // createdAt + 24h
+  expiresAt: Date;
 }

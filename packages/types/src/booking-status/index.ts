@@ -1,5 +1,3 @@
-// The one declaration of a booking's status. Used by BookingDoc, and passed
-// straight to z.nativeEnum in packages/engine's wire schema.
 export const BOOKING_STATUSES = {
   CONFIRMED: "confirmed",
   CANCELLED: "cancelled",

@@ -5,7 +5,7 @@ import { stationKindSchema } from "../station/index.js";
 import { CLOSED_REASONS } from "@playstop/types";
 
 export const availabilityQuerySchema = z.object({
-  date: localDateSchema, // required, the business date the session opens on
+  date: localDateSchema,
   stationId: objectIdSchema.optional(),
   kind: stationKindSchema.optional(),
 });
@@ -21,7 +21,7 @@ export const availabilityResponseSchema = z.object({
       reason: z.nativeEnum(CLOSED_REASONS),
     })
     .nullable(),
-  degraded: z.boolean(), // true when Redis was unreachable; held cells reported as free
+  degraded: z.boolean(),
   cells: z.array(availabilityCellSchema),
 });
 

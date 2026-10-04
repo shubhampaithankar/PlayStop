@@ -1,7 +1,3 @@
-// Hand-written structural shapes for packages/engine's slot-grid compute.
-// No Zod here: these never cross the wire directly, they describe function
-// parameters and return values inside packages/engine.
-
 import type { ClosedReason } from "../../closed-reason/index.js";
 
 export interface VenueSchedule {
@@ -18,9 +14,9 @@ export interface VenueSchedule {
 }
 
 export interface GridCell {
-  readonly cellStartMs: number; // UTC epoch ms
-  readonly cellEndMs: number; // UTC epoch ms, exclusive
-  readonly localLabel: string; // "2026-11-01 01:30 EDT"
+  readonly cellStartMs: number;
+  readonly cellEndMs: number;
+  readonly localLabel: string;
 }
 
 export type GridResult =

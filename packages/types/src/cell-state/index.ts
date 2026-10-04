@@ -1,6 +1,3 @@
-// The one declaration of a cell's availability state. packages/engine passes
-// this straight to z.nativeEnum, so the wire schema and the type can never
-// drift: there is nowhere left to declare a second, competing list.
 export const CELL_STATES = {
   FREE: "free",
   HELD: "held",

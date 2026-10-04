@@ -6,9 +6,6 @@ const openingHoursDaySchema = z
   .object({ open: z.string(), close: z.string() })
   .nullable();
 
-// Keyed by the weekday the session OPENS on, 0 = Sunday through 6 = Saturday
-// (Luxon weekday % 7). close <= open means the session runs past local
-// midnight; null means closed that weekday.
 const openingHoursSchema = z.object({
   "0": openingHoursDaySchema,
   "1": openingHoursDaySchema,
@@ -20,10 +17,10 @@ const openingHoursSchema = z.object({
 });
 
 export const venueResponseSchema = z.object({
-  id: z.string(), // ObjectId hex
+  id: z.string(),
   slug: z.string(),
   name: z.string(),
-  timezone: z.string(), // IANA
+  timezone: z.string(),
   gridMinutes: z.number().int(),
   bufferMinutes: z.number().int(),
   currency: z.string(),
@@ -31,7 +28,7 @@ export const venueResponseSchema = z.object({
   blackoutDates: z.array(localDateSchema),
   leadTimeMinutes: z.number().int(),
   maxAdvanceDays: z.number().int(),
-  stations: z.array(stationSummarySchema), // active only
+  stations: z.array(stationSummarySchema),
 });
 
 export type VenueResponse = z.infer<typeof venueResponseSchema>;

@@ -1,7 +1,3 @@
-// Closed set, shared with the client, so apps/web gets an exhaustive union and
-// the compiler catches an unhandled case when a new code is added. Key and
-// value match by design: call sites use ERROR_CODES.SLOT_TAKEN so a typo is a
-// compile error rather than a string that silently never matches.
 export const ERROR_CODES = {
   SLOT_TAKEN: "SLOT_TAKEN",
   SLOT_HELD: "SLOT_HELD",
@@ -28,6 +24,6 @@ export const ERROR_CODES = {
   VALIDATION_FAILED: "VALIDATION_FAILED",
   RATE_LIMITED: "RATE_LIMITED",
   BOOKING_NOT_FOUND: "BOOKING_NOT_FOUND",
-  NOT_FOUND: "NOT_FOUND", // generic 404 for a route that matches no endpoint at all
+  NOT_FOUND: "NOT_FOUND",
   INTERNAL: "INTERNAL",
 } as const;
