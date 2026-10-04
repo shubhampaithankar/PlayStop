@@ -119,13 +119,15 @@ function BookingsFindScreen() {
                 new Date(nowMs),
                 currentBusinessDate(venue, new Date(booking.startsAt)),
               );
+              const cancelled = booking.status === "cancelled";
+              const ended = !cancelled && Date.parse(booking.endsAt) <= nowMs;
               return (
                 <li key={booking.id}>
                   <Link
                     to="/booking/$bookingId"
                     params={{ bookingId: booking.id }}
                     search={{ code: booking.confirmationCode }}
-                    className={`pressable border-border flex flex-col gap-1 rounded-(--radius-card) border p-4 ${FOCUS_RING}`}
+                    className={`pressable border-border flex flex-col gap-1 rounded-(--radius-card) border p-4 ${cancelled || ended ? "opacity-60" : ""} ${FOCUS_RING}`}
                   >
                     <span className="text-base font-semibold">{booking.stationName}</span>
                     <span className="text-muted-foreground text-sm">
@@ -134,8 +136,8 @@ function BookingsFindScreen() {
                     </span>
                     <span className="flex items-center justify-between text-sm">
                       <code className="font-mono">{booking.confirmationCode}</code>
-                      <span className={booking.status === "cancelled" ? "text-destructive" : "text-muted-foreground"}>
-                        {booking.status === "cancelled" ? "Cancelled" : "Confirmed"}
+                      <span className={cancelled ? "text-destructive" : "text-muted-foreground"}>
+                        {cancelled ? "Cancelled" : ended ? "Expired" : "Confirmed"}
                       </span>
                     </span>
                   </Link>
