@@ -2,14 +2,15 @@
 
 One folder per thing, each with an `index.ts`.
 
-A companion file (`constants.ts`, `utils.ts`, `data.ts`, `controller.ts`, `route.ts`) joins a
+A companion file (`constants.ts`, `utils.ts`, `controller.ts`, `route.ts`) joins a
 folder **when it has something to hold**, never as an empty stub to complete the pattern. This
-is why `availability` and `hold` have no `utils.ts`, and `pricing` has no `constants.ts`: there
+is why `availability` and `venue` have no `constants.ts`: there
 was nothing to put in them.
 
 ```
 apps/api/src/
-  modules/<domain>/   route.ts -> controller.ts -> data.ts, plus utils.ts where earned
+  modules/<domain>/   route.ts -> controller.ts -> utils.ts (all functions), plus constants.ts where earned
+  types/<module>.ts   module-local type declarations, one file per module
   libs/<vendor>/      third-party wrappers only: mongo, redis, sentry
   middleware/         per-request cross-cutting concerns
   routes/             index.ts mounts each module at its own prefix
@@ -33,7 +34,7 @@ packages/types/src/
 
 ## Rules that hold across all of them
 
-- A module never reaches into another module's `data.ts`. Cross-module reads go through the
+- A module never reaches into another module's internals. Cross-module reads go through the
   owning module's exported surface.
 - Nothing under `libs/` knows what a booking is. If it needs domain knowledge it is a module.
 - `apps/web` creates no `hooks/`, `types/`, `utils/` or `features/` folder until a second file
@@ -41,3 +42,7 @@ packages/types/src/
   `@playstop/engine` and redefining one locally is the thing the shared package exists to stop.
 - Where a value lives follows one rule: declared once, as close to its only consumer as
   possible, and lifted only when a second module genuinely needs it.
+- `apps/api` type declarations are the one exception to co-location: a module's own types live
+  in `src/types/<module>.ts`, not inline in its `utils.ts`/`constants.ts`. Mongo document shapes and
+  wire contracts still come from `@playstop/types` / `@playstop/engine`; `src/types/` holds only
+  api-local derived types.

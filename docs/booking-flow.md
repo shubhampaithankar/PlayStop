@@ -45,7 +45,7 @@ Every request goes through `request()` (api.ts:87); non-2xx -> typed
 
 | Case | Handled at (file:line) | Behaviour | Gap / risk |
 |---|---|---|---|
-| Two users confirm same cell | booking/data.ts:56 `uniq_slot_claim` 11000 -> SLOT_TAKEN; index on `(venueId,cellStart,stationId)` | Loser gets 409, bounced to screen 2; Mongo txn is the only backstop | None. Redis hold is UX only (booking-correctness.md) |
+| Two users confirm same cell | booking/utils.ts:120 `uniq_slot_claim` 11000 -> SLOT_TAKEN; index on `(venueId,cellStart,stationId)` | Loser gets 409, bounced to screen 2; Mongo txn is the only backstop | None. Redis hold is UX only (booking-correctness.md) |
 | Hold expiry mid-flow | book.station.tsx:196 countdown + :514 confirm HOLD_EXPIRED -> serverExpired | 60/20/0s live announce; expired panel; Try again = rehold | Client clock drives countdown; server 410 is authority |
 | Hold release on unmount / back | book.station.tsx:266 teardown (deferred, StrictMode-safe) + :247 pagehide beacon | In-app unmount releases reliably; tab close best-effort | Beacon can drop; TTL is real backstop |
 | All units of a kind taken | stations.ts:213 kindGroupStatus -> booked_out; book.tsx:112 renders dashed non-button | Card "Full tonight", not tappable | Count only refreshes on availability refetch, not live |

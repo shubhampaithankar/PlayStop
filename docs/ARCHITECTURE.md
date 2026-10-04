@@ -30,15 +30,16 @@ middleware/            request-id, request-logger (morgan), rate-limit, venue
                         resolution, error-handler, not-found
 modules/
   venue/, availability/, hold/, booking/
-                        one folder per resource: route.ts, controller.ts, data.ts
+                        one folder per resource: route.ts, controller.ts, utils.ts
 routes/                index.ts mounts /v1/venues/:venueSlug, slug-router.ts
                         wires the four module routers under it
 seed.ts                 inserts the demo venue and its stations, idempotent
 ```
 
 Module convention: `route.ts` wires Express paths to a controller, `controller.ts` validates
-with Zod and orchestrates, `data.ts` holds the Mongo queries for that resource. A module never
-reaches into another module's `data.ts` directly, it goes through the controller.
+with Zod and orchestrates, `utils.ts` holds the functions (incl. Mongo/Redis queries) and
+`constants.ts` the values. A module never reaches into another module's internals directly, it
+goes through the controller.
 
 Tests live outside `src`, in `apps/api/tests`, mirroring the `src` layout they cover
 (`tests/modules/booking/controller.test.ts` tests `src/modules/booking/controller.ts`).
@@ -50,12 +51,12 @@ build in `dist/` so a `node --test` run never picks up stale compiled tests.
 
 One folder per thing, each with an `index.ts`. A companion file joins a folder when it has
 something to hold, never as an empty stub to complete the pattern. This is why `availability`
-and `hold` have no `utils.ts` and `pricing` has no `constants.ts`: there was nothing to put
+and `venue` have no `constants.ts`: there was nothing to put
 in them.
 
 ```
 apps/api/src/
-  modules/<domain>/   route.ts -> controller.ts -> data.ts, plus utils.ts where earned
+  modules/<domain>/   route.ts -> controller.ts -> utils.ts (all functions), plus constants.ts where earned
   libs/<vendor>/      third-party wrappers only: mongo, redis, sentry
   middleware/         per-request cross-cutting concerns
   routes/             index.ts mounts each module at its own prefix
