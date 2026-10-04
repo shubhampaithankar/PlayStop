@@ -100,6 +100,7 @@ function BookedScreen() {
   const totalRupees = booking.totalMinor / 100;
   const cancelled = booking.status === "cancelled";
   const started = Date.parse(booking.startsAt) <= nowMs;
+  const ended = Date.parse(booking.endsAt) <= nowMs && !cancelled;
 
   async function handleCopy() {
     const code = booking.confirmationCode;
@@ -145,7 +146,7 @@ function BookedScreen() {
   return (
     <PageShell>
       <h2 className="font-display text-[2rem] leading-[1.1] uppercase tracking-wide">
-        {cancelled ? "Booking cancelled" : "You're booked"}
+        {cancelled ? "Booking cancelled" : ended ? "Session over" : "You're booked"}
       </h2>
       <div className="stub stub-issued w-full p-6">
         <button
@@ -156,12 +157,14 @@ function BookedScreen() {
         >
           <code
             ref={codeRef}
-            className={`font-mono text-[clamp(2rem,11vw,3.25rem)] font-medium ${cancelled ? "text-muted-foreground line-through" : ""}`}
+            className={`font-mono text-[clamp(2rem,11vw,3.25rem)] font-medium ${cancelled ? "text-muted-foreground line-through" : ended ? "text-muted-foreground" : ""}`}
           >
             {booking.confirmationCode}
           </code>
           {cancelled ? (
             <span className="text-stop-red dark:text-stop-red-bright text-sm font-semibold uppercase tracking-wide">Cancelled</span>
+          ) : ended ? (
+            <span className="text-muted-foreground text-sm font-semibold uppercase tracking-wide">Expired</span>
           ) : null}
         </button>
         <div className="stub-perf my-4" />
@@ -169,11 +172,11 @@ function BookedScreen() {
           {booking.stationName}, {dateLabel}, {startLabel} to {endLabel}.
         </p>
       </div>
-      {cancelled ? null : <p className="text-base font-semibold">Show this code at the counter.</p>}
+      {cancelled || ended ? null : <p className="text-base font-semibold">Show this code at the counter.</p>}
       <p className="text-muted-foreground text-sm">
-        {cancelled ? "This booking was cancelled." : `Pay ₹${totalRupees} at the counter.`}
+        {cancelled ? "This booking was cancelled." : ended ? "This session has ended." : `Pay ₹${totalRupees} at the counter.`}
       </p>
-      {cancelled ? (
+      {cancelled || ended ? (
         <Link
           to="/book"
           className={`pressable btn-go flex h-12 w-full items-center justify-center rounded-(--radius) text-base font-semibold ${FOCUS_RING}`}
