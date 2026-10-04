@@ -15,7 +15,7 @@ import { rootRoute } from "./root.js";
 import { queryClient, venueOptions, availabilityOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation } from "../lib/api.js";
 import { businessDateStrip, currentBusinessDate, type BusinessDateChip } from "../lib/business-date.js";
-import { readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
+import { ownHoldOf, readAttempt, readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
 import {
   groupStationsByKind,
   hourlyRateRupees,
@@ -224,7 +224,8 @@ function BookPage() {
   }
 
   const availabilityQuery = useQuery({
-    ...availabilityOptions(date ?? "", undefined, false),
+    // Per render: BookPage stays mounted while a child screen writes the attempt.
+    ...availabilityOptions(date ?? "", undefined, false, ownHoldOf(readAttempt())),
     enabled: date !== undefined,
   });
 

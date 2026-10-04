@@ -4,6 +4,7 @@
 import { QueryClient, queryOptions } from "@tanstack/react-query";
 import type { StationKind } from "@playstop/types";
 import { ApiRequestError, getAvailability, getBooking, getVenue } from "./api.js";
+import { freeOwnHeldCells, type OwnHold } from "./stations.js";
 
 // Exported so invalidateAvailability and keys.availability build off the
 // exact same array -- see the "Invalidation, exactly" note below.
@@ -36,11 +37,23 @@ export const venueOptions = () =>
  * user has a hold, nobody is looking at 360 repainted cells, and the
  * panel's own close path invalidates on the way out anyway. The 20s/60s
  * split and the reasoning behind both live in milestone-3-spec.md section 4.
+ *
+ * `ownHold` makes the view owner-aware: the cache entry stays owner-agnostic
+ * (one shared raw truth), and `select` frees the caller's own held cells per
+ * observer. select runs only for useQuery observers, NOT fetchQuery or
+ * ensureQueryData, so trySiblingHold and the route loaders keep raw truth.
+ * That is intended.
  */
-export const availabilityOptions = (date: string, kind: StationKind | undefined, holdPanelOpen: boolean) =>
+export const availabilityOptions = (
+  date: string,
+  kind: StationKind | undefined,
+  holdPanelOpen: boolean,
+  ownHold: OwnHold | null = null,
+) =>
   queryOptions({
     queryKey: keys.availability(date, kind),
     queryFn: () => getAvailability({ date, kind }),
+    select: (data) => ({ ...data, cells: freeOwnHeldCells(data.cells, ownHold) }),
     staleTime: 10_000,
     refetchInterval: (query) => {
       if (holdPanelOpen) return false;

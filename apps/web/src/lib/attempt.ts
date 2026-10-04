@@ -106,6 +106,16 @@ export function readAttempt(): BookingAttempt | null {
   return parsed;
 }
 
+/** The range this tab holds right now, for availability's owner-aware view
+ *  (freeOwnHeldCells). Null in degraded mode (no hold) or with no attempt.
+ *  ponytail: an expired hold is not filtered out; the cell then reads free
+ *  until the next refetch and the arbiter decides at hold time anyway. */
+export function ownHoldOf(attempt: BookingAttempt | null) {
+  return attempt?.hold
+    ? { stationId: attempt.stationId, startsAt: attempt.startsAt, slotCount: attempt.slotCount }
+    : null;
+}
+
 export function writeAttempt(attempt: BookingAttempt): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(attempt));

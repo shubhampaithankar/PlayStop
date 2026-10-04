@@ -190,6 +190,11 @@ Worth knowing before touching this code again.
   (required, see `docs/milestone-2-spec.md` section 4), a command issued before the socket reaches
   the `ready` state fails with `Stream isn't writeable` instead of queueing. Boot must await the
   `ready` event, not assume the constructor returns a usable client.
+- **Availability truth is owner-agnostic; owner-awareness is a view-only `select`.** The cache holds
+  one shared entry per date and kind, and the server never learns a holdId for availability. The
+  client frees its own held cells (`freeOwnHeldCells`) in a `select` on `useQuery` observers only,
+  so `fetchQuery` and `ensureQueryData` keep raw truth. Without it, a player's own hold read as
+  someone else's and collapsed the length options.
 
 ## Current state vs planned
 

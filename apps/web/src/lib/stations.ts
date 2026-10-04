@@ -83,6 +83,37 @@ export function cellsByStation(cells: readonly AvailabilityCell[], stationId: st
   return cells.filter((cell) => cell.stationId === stationId).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+/** The caller's own hold range, from its booking attempt. */
+export interface OwnHold {
+  readonly stationId: string;
+  readonly startsAt: string;
+  readonly slotCount: number;
+}
+
+/** Per-viewer, view-only: flips the caller's OWN held cells to FREE so the
+ *  grid and length options do not count the player against themselves. A
+ *  HELD cell inside one's own hold range can only be one's own hold
+ *  (acquireHold is atomic all-or-nothing and no two holds share a cell), so
+ *  no holdId round-trip is needed. Only HELD flips: BOOKED, MAINTENANCE and
+ *  PAST stay truthful. Returns the original array when nothing changed. The
+ *  arbiter (Mongo) never sees this; see docs/conventions/booking-correctness.md. */
+export function freeOwnHeldCells(cells: AvailabilityCell[], own: OwnHold | null): AvailabilityCell[] {
+  if (own === null) return cells;
+  const stationCells = cellsByStation(cells, own.stationId);
+  const startIndex = stationCells.findIndex((cell) => cell.startsAt === own.startsAt);
+  if (startIndex === -1) return cells;
+  const ownStarts = new Set(stationCells.slice(startIndex, startIndex + own.slotCount).map((cell) => cell.startsAt));
+  let changed = false;
+  const next = cells.map((cell) => {
+    if (cell.stationId !== own.stationId || !ownStarts.has(cell.startsAt) || cell.state !== CELL_STATES.HELD) {
+      return cell;
+    }
+    changed = true;
+    return { ...cell, state: CELL_STATES.FREE };
+  });
+  return changed ? next : cells;
+}
+
 /** Length of the free run starting at sortedCells[startIndex], stopping at
  *  the first non-free cell or the first adjacency gap. Exported: also used
  *  by lengthOptionsForStart to find how far a chosen start stays free. */
