@@ -554,6 +554,13 @@ body {
     opacity: 0;
   }
 }
+/* Delayed fade (0.18s = the selection beat) so a fast hold never shows the
+ * indicator. An opacity fade is not motion, so it sits outside the
+ * reduced-motion gate like .route-progress; the pulse itself is gated via
+ * motion-safe:. */
+.late-in {
+  animation: route-progress-in 0.2s ease-out 0.18s both;
+}
 @media (prefers-reduced-motion: no-preference) {
   .route-progress-bar {
     width: 40%;

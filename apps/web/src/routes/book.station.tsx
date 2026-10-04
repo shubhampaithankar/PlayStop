@@ -8,6 +8,7 @@
 // apps/web/tests/router.test.ts imports this file under plain `node --test`.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
+import { Square } from "lucide-react";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { createBookingRequestSchema, otpContactSchema } from "@playstop/engine";
@@ -126,6 +127,7 @@ function PickTimeScreen({
   onBack: () => void;
   onPick: (startsAt: string) => void;
 }) {
+  const [pickedStart, setPickedStart] = useState<string | null>(null);
   return (
     <PageShell>
       <StepHeading step="Step 2 of 4" title="Pick a start time" onBack={onBack} />
@@ -143,9 +145,18 @@ function PickTimeScreen({
                 <button
                   key={row.cell.startsAt}
                   type="button"
-                  onClick={() => advanceAfterBeat(() => onPick(row.cell.startsAt))}
+                  disabled={pickedStart !== null}
+                  aria-pressed={row.cell.startsAt === pickedStart}
+                  onClick={() => {
+                    setPickedStart(row.cell.startsAt);
+                    advanceAfterBeat(() => onPick(row.cell.startsAt));
+                  }}
                   style={riseDelay(index)}
-                  className={`anim-rise pressable tile lift h-14 font-mono text-base ${FOCUS_RING}`}
+                  className={
+                    row.cell.startsAt === pickedStart
+                      ? `anim-select tile-on h-14 font-mono text-base font-semibold ${FOCUS_RING}`
+                      : `anim-rise pressable tile lift h-14 font-mono text-base ${FOCUS_RING}`
+                  }
                 >
                   {label}
                 </button>
@@ -227,7 +238,14 @@ function PickLengthScreen({
               }
             >
               <span className="font-semibold">{hourWord}</span>
-              <span className="font-mono font-medium">₹{option.priceRupees}</span>
+              {selected ? (
+                <span aria-live="polite" className="late-in flex items-center gap-2 font-medium">
+                  <Square aria-hidden="true" fill="currentColor" className="size-3.5 motion-safe:animate-pulse" />
+                  Holding…
+                </span>
+              ) : (
+                <span className="font-mono font-medium">₹{option.priceRupees}</span>
+              )}
             </button>
           );
         })}
@@ -1335,6 +1353,8 @@ function BookStationScreen() {
   async function handlePick(option: LengthOption) {
     setHoldError(null);
     setPendingHours(option.hours);
+    // Run the selection beat alongside the hold request: advance at max(beat, POST), not beat + POST.
+    const beatDone = new Promise<void>((resolve) => advanceAfterBeat(resolve));
 
     // milestone-3-spec.md section 5: if a mismatched attempt is already in
     // sessionStorage (the user was mid-flow on a different range), release
@@ -1366,24 +1386,22 @@ function BookStationScreen() {
         slotCount: option.slotCount,
       });
       writeAttempt({ ...attempt, hold: holdRecord(hold) });
-      advanceAfterBeat(() =>
-        navigate({
-          to: "/book/$stationId",
-          params: { stationId },
-          search: { start: search.start, slots: option.slotCount },
-        }),
-      );
+      await beatDone;
+      void navigate({
+        to: "/book/$stationId",
+        params: { stationId },
+        search: { start: search.start, slots: option.slotCount },
+      });
     } catch (err) {
       // Degraded mode (section 9): HOLD_UNAVAILABLE is not a failure to
       // book. The attempt record already has hold: null; proceed anyway.
       if (err instanceof ApiRequestError && err.code === "HOLD_UNAVAILABLE") {
-        advanceAfterBeat(() =>
-          navigate({
-            to: "/book/$stationId",
-            params: { stationId },
-            search: { start: search.start, slots: option.slotCount },
-          }),
-        );
+        await beatDone;
+        void navigate({
+          to: "/book/$stationId",
+          params: { stationId },
+          search: { start: search.start, slots: option.slotCount },
+        });
         return;
       }
       // SLOT_TAKEN / SLOT_HELD: the kind's card promised kind-level
@@ -1402,13 +1420,12 @@ function BookStationScreen() {
             submitted: null,
             outcomeUnknown: false,
           });
-          advanceAfterBeat(() =>
-            navigate({
-              to: "/book/$stationId",
-              params: { stationId: sibling.station.id },
-              search: { start: attempt.startsAt, slots: option.slotCount },
-            }),
-          );
+          await beatDone;
+          void navigate({
+            to: "/book/$stationId",
+            params: { stationId: sibling.station.id },
+            search: { start: attempt.startsAt, slots: option.slotCount },
+          });
           return;
         }
       }

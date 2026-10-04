@@ -274,7 +274,7 @@ Theme: the header carries a sun/moon toggle next to the wordmark, cycling light 
     across the card over 750ms. Pointer only, garnish only.
   - Press: any bookable button compresses 1px and 99% scale for 120ms.
   - Selection beat: tapping a time or length fills it green, pops to 104% for 200ms, and
-    the flow advances 180ms later. With reduced motion the advance is immediate (checked
+    the flow advances after 180ms or when the hold request returns, whichever is later. With reduced motion the advance is immediate (checked
     via `matchMedia`) and selection stays obvious: the green fill is color, not motion.
   - The countdown digit color change, and shadcn defaults for Dialog/Drawer. Nothing else
     moves.
@@ -290,7 +290,7 @@ shadcn/ui mapping, themed, never restyled beyond tokens:
 | Player form | `Input` + `Label` | inline errors below fields, red text |
 | Closed / degraded notice | `Alert` | plain words: "Bookings are closed today." / "Live updates are down. A console shown free may already be taken." |
 | Taken-while-booking (409/410) | `Sonner` toast + refetch | names the time: "Someone took 9:30 pm while you were looking. Pick another time." |
-| Loading | `Skeleton` in card / button geometry | route waits: after 200ms the STOP-square `LoadingScreen`, held 500ms minimum; a 3px brand bar fixed at the top shows on any pending navigation (static under reduced motion) |
+| Loading | `Skeleton` in card / button geometry | route waits: after 200ms the STOP-square `LoadingScreen`, held 500ms minimum; a 3px brand bar fixed at the top shows on any pending navigation (static under reduced motion); in-control waits (the hold POST) keep the green fill and swap the price for a pulsing STOP square and "Holding…", faded in only once the wait outlives the beat |
 | Confirmation code | custom bordered block | mono 60px |
 
 Console cards, time buttons, and length buttons are custom elements (buttons when bookable,
