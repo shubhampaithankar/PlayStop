@@ -12,11 +12,6 @@ if (!rootElement) {
   throw new Error("root element not found");
 }
 
-// Dev-only design mockup route, entirely outside the real router: no search
-// param validation, no loaders, no API calls. import.meta.env.DEV
-// static-replaces to `false` in a production build, so Rollup dead-code
-// eliminates this branch (and the dynamic import with it) out of the
-// production bundle -- see src/mockups/MockupsApp.tsx to remove it entirely.
 const isMockupsRoute = import.meta.env.DEV && window.location.pathname.startsWith("/__mockups");
 
 if (isMockupsRoute) {
@@ -30,9 +25,6 @@ if (isMockupsRoute) {
 } else {
   createRoot(rootElement).render(
     <StrictMode>
-      {/* attribute="class" toggles .dark on <html>, DESIGN.md's shadcn convention.
-          enableSystem + defaultTheme="system" is what makes .dark reachable at all
-          outside mockups/ -- round-6 remainder, previously dead code. */}
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />

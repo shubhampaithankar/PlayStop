@@ -1,11 +1,3 @@
-// `/book` -- screen 1, pick a console (DESIGN.md "1. Pick a console").
-// Structure ported from the round-5 design mockup's PickConsole
-// (apps/web/src/mockups/BookingFlowMockup.tsx), swapped to real venue and
-// availability data. Screens 2-5 land later, under the <Outlet/> below.
-//
-// Relative .js-extension imports for the same reason as routes/root.tsx:
-// apps/web/tests/router.test.ts imports router.tsx (and therefore this
-// file) under plain `node --test`, which has no Vite alias resolution.
 import { useState, type ReactNode } from "react";
 import { createRoute, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -25,9 +17,6 @@ import {
 } from "../lib/stations.js";
 import { Notice, SkeletonBox, LoadingScreen, FOCUS_RING, riseDelay, StepHeading } from "../components/screen-ui.js";
 
-// DESIGN.md's art word is "PS5"/"PS3"/"PS2"/"SIM"; the real station kind is
-// "racing-sim" (packages/types), so it needs a display label rather than a
-// plain toUpperCase().
 const ART_WORD: Record<StationKind, string> = {
   [STATION_KINDS.PS5]: "PS5",
   [STATION_KINDS.PS3]: "PS3",
@@ -35,8 +24,6 @@ const ART_WORD: Record<StationKind, string> = {
   [STATION_KINDS.RACING_SIM]: "SIM",
 };
 
-// Full card title, distinct from the clipped art word ("SIM" fits the band;
-// "Sim Rig" is what the card body says -- DESIGN.md round 6's four cards).
 const KIND_LABEL: Record<StationKind, string> = {
   [STATION_KINDS.PS5]: "PS5",
   [STATION_KINDS.PS3]: "PS3",
@@ -44,9 +31,6 @@ const KIND_LABEL: Record<StationKind, string> = {
   [STATION_KINDS.RACING_SIM]: "Sim Rig",
 };
 
-/* CSS-generated console art (DESIGN.md "Imagery"): a hue wash plus the kind
-   word set huge and clipped; sims get a checkered strip. Decorative only,
-   aria-hidden, never a state. */
 function ConsoleArt({ kind, dimmed }: { kind: StationKind; dimmed?: boolean }) {
   return (
     <div aria-hidden className={`art-band art-${kind}${dimmed ? " art-dimmed" : ""}`}>
@@ -72,12 +56,6 @@ function StatusLine({ status }: { status: KindStatus }) {
   );
 }
 
-/* One card per kind (DESIGN.md round 6), not per station: the app assigns
-   the lowest-numbered free unit on pick, and that station carries the rest
-   of the flow unchanged -- its name ("PS5 #4") is what the recap and the
-   confirmation code screen already show. Bookable kinds are whole-card
-   buttons; full or broken ones are plain dashed-border text blocks --
-   nothing unavailable looks tappable. */
 function ConsoleCard({
   kind,
   stations,
@@ -94,7 +72,7 @@ function ConsoleCard({
   onPick: (station: StationSummary) => void;
 }) {
   const representative = stations[0];
-  if (!representative) return null; // groupStationsByKind never emits an empty group
+  if (!representative) return null;
   const bookable = status.kind === "free_now" || status.kind === "free_from";
   const body = (
     <div className="flex flex-col gap-1.5 p-4">
@@ -140,12 +118,6 @@ function PageShell({ children }: { children: ReactNode }) {
   );
 }
 
-/* The 7-chip date strip (booking-guardrails-otp-design.md frontend phase):
-   rolling 7 days, today..+6, driving the availability query. Composed from
-   the same .tile/.tile-on vocabulary as the time and length grids -- a
-   selected chip fills go green exactly like a selected length button,
-   never a new visual language. Horizontal scroll, not a wrap, so 7 chips
-   never crowd a phone-width screen. */
 function DateStrip({
   chips,
   selected,
@@ -200,20 +172,11 @@ function SkeletonGrid() {
 }
 
 function BookPage() {
-  // /book renders the console grid only when it is the leaf route. Screen 2
-  // (book.station.tsx) is a full-screen step, not a panel over the grid, so
-  // once a child route matches, render just its Outlet instead of nesting
-  // it inside PageShell's grid + StepHeading. Hooks stay unconditional
-  // (childMatches.length can change between renders) -- the branch is in
-  // the returned JSX, not an early return before the other hooks.
   const childMatches = useChildMatches();
   const navigate = useNavigate();
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
 
-  // The date strip's picked day, sessionStorage-backed so it survives into
-  // screens 2-4 and back (lib/attempt.ts). Falls back to tonight when
-  // nothing was picked yet, or the stored value predates today.
   const [selectedDate, setSelectedDate] = useState<string | undefined>(() => readSelectedDate() ?? undefined);
   const date = venue ? (selectedDate ?? currentBusinessDate(venue, new Date())) : undefined;
   const chips = venue ? businessDateStrip(venue, new Date()) : [];
@@ -224,7 +187,6 @@ function BookPage() {
   }
 
   const availabilityQuery = useQuery({
-    // Per render: BookPage stays mounted while a child screen writes the attempt.
     ...availabilityOptions(date ?? "", undefined, false, ownHoldOf(readAttempt())),
     enabled: date !== undefined,
   });
@@ -266,7 +228,7 @@ function BookPage() {
   }
 
   const availability = availabilityQuery.data;
-  if (!availability) return <PageShell><LoadingScreen /></PageShell>; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
+  if (!availability) return <PageShell><LoadingScreen /></PageShell>;
 
   return (
     <PageShell>
@@ -295,8 +257,6 @@ function BookPage() {
 export const bookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/book",
-  // Prime the same queries BookPage reads so the pending phase covers the
-  // genuine wait. book.station inherits this; its steps 2-4 stay instant.
   loader: async () => {
     const venue = await queryClient.ensureQueryData(venueOptions()).catch(() => undefined);
     if (!venue) return;

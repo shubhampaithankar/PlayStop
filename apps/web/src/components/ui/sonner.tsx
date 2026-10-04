@@ -7,9 +7,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
-      // exactOptionalPropertyTypes: useTheme returns string | undefined, and the
-        // destructure above already defaults it, so NonNullable states what is
-        // already true rather than widening the prop.
         theme={theme as NonNullable<ToasterProps["theme"]>}
       className="toaster group"
       icons={{

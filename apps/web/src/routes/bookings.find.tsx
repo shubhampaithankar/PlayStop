@@ -1,9 +1,3 @@
-// `/bookings/find` -- look up every booking made with a contact by proving you
-// own it: the same /otp/request + /otp/verify the confirm step uses, then a
-// read-only POST /bookings/lookup keyed on the verified id. The server takes
-// the contact from the verified record, never from this page.
-//
-// Relative .js-extension imports for the same reason as routes/root.tsx.
 import { useState } from "react";
 import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -57,7 +51,6 @@ function BookingsFindScreen() {
 
   async function handleSendCode() {
     const raw = (channel === "email" ? emailValue : phoneValue).trim();
-    // Same schema as the confirm step: same India-phone pattern and normalization.
     const parsed = otpContactSchema.safeParse(
       channel === "email" ? { channel: "email", email: raw } : { channel: "sms", phone: raw },
     );
@@ -91,7 +84,6 @@ function BookingsFindScreen() {
       if (err instanceof ApiRequestError && err.code === "OTP_INVALID") {
         setPanelError("Wrong code. Try again.");
       } else if (err instanceof ApiRequestError && err.code === "OTP_EXPIRED") {
-        // Code timed out: back to the form to get a fresh one.
         setChallenge(null);
         setPanelError("That code expired. Send a new one.");
       } else {

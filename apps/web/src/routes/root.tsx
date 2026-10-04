@@ -1,12 +1,3 @@
-// The root route: header/wordmark, the outlet the four screens render into,
-// the toast host, and the fallbacks for a render error or an unmatched URL
-// (milestone-3-spec.md section 14 step 4).
-//
-// Relative imports with explicit .js extensions here rather than the "@/..."
-// Vite alias: apps/web/tests/router.test.ts imports router.tsx (and
-// therefore this file) under plain `node --test`, which has no alias
-// resolution. Everything this file needs (sonner, lucide-react) is a real
-// package, so the relative form costs nothing and stays dual-environment.
 import * as React from "react";
 import { createRootRoute, Link, Outlet, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import { Square, Sun, Moon } from "lucide-react";
@@ -15,9 +6,6 @@ import { Toaster } from "../components/ui/sonner.js";
 import { FOCUS_RING } from "../components/screen-ui.js";
 import { queryClient, venueOptions } from "../lib/query-client.js";
 
-// import.meta.env is a Vite-only global (see lib/api.ts's envVar for the
-// same guard) -- undefined under node --test, never true there, so
-// devtools stay out of the test run without special-casing it.
 const TanStackRouterDevtools = import.meta.env?.DEV
   ? React.lazy(() =>
       import("@tanstack/react-router-devtools").then((mod) => ({ default: mod.TanStackRouterDevtools })),
@@ -30,9 +18,6 @@ const ReactQueryDevtools = import.meta.env?.DEV
     )
   : () => null;
 
-// DESIGN.md round 7: one word, one weight, no color split. The old
-// PLAY(cobalt)+STOP(ink) split read as two words; cobalt now carries the
-// whole word and the trailing STOP-square mark alike.
 function Wordmark() {
   return (
     <Link
@@ -46,9 +31,6 @@ function Wordmark() {
   );
 }
 
-// Not the shadcn Button (components/ui/button.tsx) -- same rendered result
-// via FOCUS_RING, minus its "@/lib/utils" import, for the reason this
-// file's header comment gives: this route resolves under plain `node --test`.
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -64,9 +46,6 @@ function ThemeToggle() {
   );
 }
 
-// Thin top bar while any navigation is pending (DESIGN.md transition feedback).
-// Decorative: LoadingScreen already carries role="status" for the long waits.
-// The CSS delays its fade-in, so a navigation that settles fast never shows it.
 function RouteProgressBar() {
   const isPending = useRouterState({ select: (state) => state.status === "pending" });
   if (!isPending) return null;
@@ -130,10 +109,6 @@ function NotFoundComponent() {
 }
 
 export const rootRoute = createRootRoute({
-  // Venue is read by every screen and never goes stale (staleTime Infinity), so
-  // priming it here makes later client navigations instant. .catch: a failed
-  // prefetch must not reach the root error boundary; the screen's own useQuery
-  // re-hits the cached error and renders its inline error UI.
   loader: () => queryClient.ensureQueryData(venueOptions()).catch(() => undefined),
   component: RootComponent,
   errorComponent: RootErrorComponent,

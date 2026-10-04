@@ -1,7 +1,3 @@
-// The single network choke point (milestone 3 spec, section 3). No component
-// and no query function calls fetch directly; every request goes through
-// `request()` below, which owns the base URL, the venue slug, the header
-// set, and how a non-2xx body becomes a typed error.
 import { z } from "zod";
 import {
   apiErrorSchema,
@@ -22,7 +18,6 @@ import {
   type LookupBookingsRequest,
 } from "@playstop/engine";
 
-/** The server answered with a structured error. `code` is the closed union from packages/engine. */
 export class ApiRequestError extends Error {
   override readonly name = "ApiRequestError";
   constructor(
@@ -37,12 +32,10 @@ export class ApiRequestError extends Error {
   }
 }
 
-/** The request never produced a server answer. `outcomeUnknown` drives the retry rules. */
 export class NetworkError extends Error {
   override readonly name = "NetworkError";
   constructor(
     message: string,
-    /** True when the request may have reached the server and been processed. */
     readonly outcomeUnknown: boolean,
     override readonly cause?: unknown,
   ) {
@@ -77,12 +70,10 @@ type Method = "GET" | "POST";
 
 interface RequestOptions<T> {
   readonly method: Method;
-  /** Relative to /v1/venues/{slug}, e.g. "/availability". */
   readonly path: string;
   readonly query?: Record<string, string>;
   readonly body?: unknown;
   readonly idempotencyKey?: string;
-  /** The response schema from @playstop/engine. */
   readonly schema: z.ZodType<T>;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
@@ -108,10 +99,6 @@ async function request<T>(opts: RequestOptions<T>): Promise<T> {
       ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
     });
   } catch (cause) {
-    // Aborted by the caller's own signal (not our timeout) -> the caller
-    // knows the outcome, it chose to cancel. Everything else -- our own
-    // timeout firing, a real network failure -- means the request may or
-    // may not have reached the server.
     const callerAborted = opts.signal?.aborted === true;
     const outcomeUnknown = opts.method === "POST" && !callerAborted;
     throw new NetworkError("Could not reach the server.", outcomeUnknown, cause);
@@ -161,11 +148,6 @@ export const createHold = (b: CreateHoldRequest) =>
 export const releaseHold = (b: ReleaseHoldRequest) =>
   request({ method: "POST", path: "/holds/release", body: b, schema: z.undefined() });
 
-/** Best-effort hold release on tab close or reload (milestone-3-spec.md
- *  section 5, "Tab close and reload"). Fire and forget: keepalive lets the
- *  request outlive the unloading page, and there is nothing to await -- the
- *  caller has already left. Not through request(): keepalive needs a raw
- *  fetch, and a pagehide handler must never await a response. */
 export function releaseHoldBeacon(b: ReleaseHoldRequest): void {
   try {
     const url = new URL(`${baseUrl()}/holds/release`);
@@ -203,14 +185,6 @@ export const cancelBooking = (id: string, code: string) =>
     schema: bookingResponseSchema,
   });
 
-/** Maps a zod `.flatten()`-shaped `details` value onto the player form's two
- *  fields, per section 6's VALIDATION_FAILED row: "Map fieldErrors.player.name
- *  and friends onto the matching inputs; anything in formErrors becomes a
- *  panel-level message." Handles both a nested `fieldErrors.player.name` and
- *  a dotted `fieldErrors["player.name"]`, since flatten()'s exact shape for a
- *  nested object varies by how the schema failed. Used for the server's
- *  VALIDATION_FAILED `details` and for the client's own pre-send parse of
- *  `createBookingRequestSchema`, which produces the identical flatten() shape. */
 export function playerFieldErrors(
   details: unknown,
 ): { name?: string | undefined; phone?: string | undefined; email?: string | undefined; panel: string | null } {
@@ -225,22 +199,20 @@ export function playerFieldErrors(
 }
 
 type Recovery =
-  | "retry-same" // same request, same idempotency key, a button the user presses
-  | "rehold" // the range may still be free: re-acquire a hold, then confirm
-  | "refetch-and-pick" // the range is gone: refresh the grid, choose again
-  | "fix-input" // the user must change a field
-  | "terminal"; // nothing the user can do here
+  | "retry-same"
+  | "rehold"
+  | "refetch-and-pick"
+  | "fix-input"
+  | "terminal";
 
 interface ErrorPresentation {
   readonly title: string;
-  readonly detail: string; // may be replaced by the server's message where it is better
+  readonly detail: string;
   readonly recovery: Recovery;
   readonly surface: "toast" | "panel" | "field" | "page";
   readonly reportToSentry: boolean;
 }
 
-// Record<ErrorCode, ...> over the closed Zod enum from packages/types: adding
-// a code there fails this file to compile until it is handled here too.
 export const errorPresentation: Record<ErrorCode, ErrorPresentation> = {
   SLOT_TAKEN: {
     title: "Just booked",
@@ -389,11 +361,6 @@ export const errorPresentation: Record<ErrorCode, ErrorPresentation> = {
     surface: "page",
     reportToSentry: true,
   },
-  // The OTP panel (request -> code -> verify -> confirm) is the details
-  // screen in book.station.tsx: OTP_REQUIRED is a defensive fallback (the
-  // client always verifies before confirming), OTP_INVALID keeps the code
-  // input open, and OTP_EXPIRED reuses the same expired panel as a lapsed
-  // hold -- both mean "start this hold over."
   OTP_REQUIRED: {
     title: "Verify your phone",
     detail: "Verify the code we sent before we can confirm this booking.",

@@ -1,7 +1,3 @@
-// Dev-only design review harness: the step switcher jumps between the
-// booking flow's screens, plus light/dark per DESIGN.md's ".dark on <html>"
-// convention. This whole folder is scaffolding -- delete src/mockups/ and
-// the two lines in main.tsx that reference it to remove it entirely.
 import { useEffect, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { BookingFlowMockup, type FlowStep } from "./BookingFlowMockup";

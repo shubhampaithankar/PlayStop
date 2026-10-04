@@ -1,24 +1,8 @@
-// Shared building blocks for the booking screens (DESIGN.md's step counter,
-// notice, skeleton, focus ring, entrance stagger). Lifted out of book.tsx
-// once book.station.tsx needed the same pieces -- docs/conventions/modules.md:
-// a second file genuinely needing it earns a shared module. It sits beside
-// components/ui/ rather than in lib/, which that same file scopes to api.ts
-// and query-client.ts; this is markup, not a data concern.
-//
-// Not "@/lib/utils"-importing shadcn output (components/ui/alert.tsx,
-// skeleton.tsx): apps/web/tests/router.test.ts imports routes under plain
-// `node --test`, which has no Vite alias resolution. Relative .js-extension
-// imports for the same reason as routes/root.tsx.
 import type { ComponentProps, CSSProperties, ReactNode } from "react";
-// The Radix primitive directly, not components/ui/toggle-group.tsx: that shadcn
-// file imports "@/lib/utils", which plain `node --test` cannot resolve.
 import { Dialog as DialogPrimitive, ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 import { ArrowLeft, Square } from "lucide-react";
 import type { OtpChannel } from "@playstop/engine";
 
-// Not the shadcn Alert/Skeleton -- same tokens, same rendered result, just
-// inlined so this stays resolvable from a plain `node --test` run. See
-// DESIGN.md's Components table for the mapping this stands in for.
 export function Notice({ tone = "default", children }: { tone?: "default" | "destructive"; children: ReactNode }) {
   return (
     <div
@@ -34,26 +18,13 @@ export function SkeletonBox({ className }: { className: string }) {
   return <div className={`bg-muted animate-pulse rounded-md ${className}`} />;
 }
 
-// Tailwind's ring compiles to box-shadow, which forced-colors mode drops. A
-// transparent outline survives it: forced colors repaints it as Highlight.
 export const FOCUS_RING =
   "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-transparent";
 
-// Shared underline-link tap-target stanza (DESIGN.md 44px min hit area):
-// underline + focus ring + 44px min height. Compose per site with colour,
-// alignment, and the negative-margin trick that grows the hit area without
-// changing the visual size. Extracted after the tap-target sweep hand-copied
-// it across five buttons and missed one.
 export const UNDERLINE_LINK = `flex min-h-11 items-center text-sm underline underline-offset-4 transition-colors ${FOCUS_RING}`;
 
-// Back-style link: foreground colour (not muted) plus a leading arrow, so it
-// reads as a control. Compose with the negative-margin hit-area trick per site.
 export const BACK_LINK = `text-foreground hover:text-brand dark:hover:text-brand-bright gap-1.5 font-medium ${UNDERLINE_LINK}`;
 
-// One loading look for route/query pending states (DESIGN.md: the STOP-square
-// mark is the brand idiom). Pulse is motion-safe only: reduced motion gets the
-// static mark. A div, not a main, so it nests inside a screen or stands alone.
-// ponytail: one generic loader; shaped skeletons stay where layout shift matters (book grids).
 export function LoadingScreen() {
   return (
     <div
@@ -66,7 +37,6 @@ export function LoadingScreen() {
   );
 }
 
-/* Entrance stagger (DESIGN.md motion): child N rises 35ms later, capped at 9. */
 export const riseDelay = (index: number): CSSProperties =>
   ({ "--rise-delay": `${Math.min(index, 8) * 35}ms` }) as CSSProperties;
 
@@ -97,9 +67,6 @@ export function StepHeading({
   );
 }
 
-/* Selection beat (DESIGN.md motion): let the green fill land before the flow
-   advances. Reduced motion skips the wait; the fill itself is a color
-   change, not motion. */
 export function advanceAfterBeat(advance: () => void): void {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     advance();
@@ -108,9 +75,6 @@ export function advanceAfterBeat(advance: () => void): void {
   window.setTimeout(advance, 180);
 }
 
-// Not the shadcn Input/Label (components/ui/input.tsx, label.tsx) -- same
-// classes, minus the "@/lib/utils" cn() import, for the same
-// plain-`node --test`-resolvable reason as Notice/SkeletonBox above.
 export function TextField({
   id,
   label,
@@ -133,8 +97,6 @@ export function TextField({
   );
 }
 
-// Not the shadcn Dialog (components/ui/dialog.tsx) -- same Radix primitive
-// and rendered result, minus the "@/lib/utils" cn() import.
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -184,9 +146,6 @@ export function ConfirmDialog({
   );
 }
 
-// Contact form pieces shared by the booking confirm step and the
-// find-my-bookings screen (lifted from book.station.tsx, unchanged).
-// Field error line: the id is what the input's aria-describedby points at.
 export function FieldError({ id, message }: { id: string; message: string | undefined }) {
   return message ? (
     <p id={id} role="alert" className="text-destructive text-sm">
@@ -195,9 +154,6 @@ export function FieldError({ id, message }: { id: string; message: string | unde
   ) : null;
 }
 
-// One bordered box (TextField's input classes) holding a fixed "+91" segment
-// and the number input. ponytail: India-only, so no country picker or phone
-// library; add libphonenumber-js if the lounge ever takes other countries.
 export function PhoneField({
   id,
   label,
@@ -230,14 +186,11 @@ export function PhoneField({
           type="tel"
           inputMode="numeric"
           autoComplete="tel-national"
-          // No maxLength: the browser would truncate a pasted "+91 98765 43210" to its
-          // first 10 characters before onChange runs; the slice below is the cap.
           pattern="[6-9][0-9]{9}"
           placeholder="9876543210"
           required
           disabled={disabled}
           value={value}
-          // Digits only, then the last 10: a pasted "+91 98765 43210" survives.
           onChange={(event) => onValueChange(event.target.value.replace(/\D/g, "").slice(-10))}
           aria-invalid={invalid ? true : undefined}
           aria-describedby={describedBy}
@@ -262,7 +215,6 @@ export function ChannelToggle({
       type="single"
       value={value}
       onValueChange={(next) => {
-        // Radix emits "" when the pressed item is pressed again; a channel is always required.
         if (next !== "email" && next !== "sms") return;
         onValueChange(next);
       }}

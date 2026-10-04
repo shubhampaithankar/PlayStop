@@ -1,11 +1,3 @@
-// `/booking/:id` -- screen 5, "Booked" (DESIGN.md section 5). Confirmation
-// code, recap, cancel. Loads from the cache seeded by screen 4's
-// setQueryData on the happy path, or fetches with `?code=` on a reload or a
-// pasted link.
-//
-// Relative .js-extension imports for the same reason as routes/root.tsx:
-// apps/web/tests/router.test.ts imports router.tsx (and therefore this
-// file) under plain `node --test`, which has no Vite alias resolution.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { createRoute, Link } from "@tanstack/react-router";
@@ -19,10 +11,6 @@ import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js"
 import { saveBooking } from "../lib/booking-history.js";
 import { LoadingScreen, ConfirmDialog, FOCUS_RING, UNDERLINE_LINK } from "../components/screen-ui.js";
 
-// .catch(undefined) rather than a bare .optional(): validateSearch throwing
-// escapes to the ROOT error boundary and would replace the whole app with
-// "Something broke" for one stale link -- same reasoning as
-// routes/book.station.tsx's searchSchema.
 const searchSchema = z.object({
   code: z.string().optional().catch(undefined),
 });
@@ -74,10 +62,6 @@ function BookedScreen() {
     ...bookingOptions(bookingId, search.code ?? ""),
     enabled: search.code !== undefined,
   });
-  // The venue query is cached with staleTime: Infinity from earlier in the
-  // flow (see lib/query-client.ts); a direct/bookmarked visit to this route
-  // fetches it fresh. Needed only for the end time -- the booking response
-  // carries no timezone, and localLabel covers the start alone.
   const venueQuery = useQuery(venueOptions());
 
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -85,8 +69,6 @@ function BookedScreen() {
   const [nowMs] = useState(() => Date.now());
   const codeRef = useRef<HTMLElement>(null);
 
-  // Remember a successfully loaded booking on this device (lib/booking-history.ts).
-  // Only runs with data in hand, so error and pending states never record.
   const loadedBooking = bookingQuery.data;
   const savedCode = search.code;
   useEffect(() => {
@@ -109,13 +91,10 @@ function BookedScreen() {
 
   const booking = bookingQuery.data;
   const venue = venueQuery.data;
-  if (!booking || !venue) return <SkeletonState />; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
+  if (!booking || !venue) return <SkeletonState />;
 
   const startLabel = instantLabel(booking.startsAt, venue.timezone);
   const endLabel = instantLabel(booking.endsAt, venue.timezone);
-  // The date the booking's own session falls on, not "now" -- the same
-  // yesterday-crosses-midnight logic currentBusinessDate uses for "which
-  // session is running", applied to the booking's start instant instead.
   const bookingDate = currentBusinessDate(venue, new Date(booking.startsAt));
   const dateLabel = businessDateLabel(venue, new Date(nowMs), bookingDate);
   const totalRupees = booking.totalMinor / 100;
@@ -152,8 +131,6 @@ function BookedScreen() {
       setCancelOpen(false);
     } catch (err) {
       setCancelOpen(false);
-      // BOOKING_NOT_CANCELLABLE ("Close the confirm dialog, refetch the
-      // booking", section 6) and everything else: refetch and toast.
       void queryClient.invalidateQueries({ queryKey: keys.booking(bookingId) });
       const message =
         err instanceof ApiRequestError ? errorPresentation[err.code].detail : "Something went wrong. Please try again.";
@@ -170,8 +147,6 @@ function BookedScreen() {
       <h2 className="font-display text-[2rem] leading-[1.1] uppercase tracking-wide">
         {cancelled ? "Booking cancelled" : "You're booked"}
       </h2>
-      {/* The ticket stub, issued: code above the tear, station and time
-          below it (DESIGN.md Imagery, round-6 remainder). */}
       <div className="stub stub-issued w-full p-6">
         <button
           type="button"
@@ -181,9 +156,6 @@ function BookedScreen() {
         >
           <code
             ref={codeRef}
-            // ponytail: fixed clamp ceiling (3.25rem, tracking normal) fits a
-            // worst-case 11-char code in the 352px stub content box at any
-            // viewport, cheaper than a container query for a fixed-width column.
             className={`font-mono text-[clamp(2rem,11vw,3.25rem)] font-medium ${cancelled ? "text-muted-foreground line-through" : ""}`}
           >
             {booking.confirmationCode}

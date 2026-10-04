@@ -1,9 +1,3 @@
-// Design mockup: the whole booking flow, round 5. Round 3's structure is
-// untouched: one decision per screen, words carry every state, nothing
-// unavailable looks tappable. Round 5 rebuilds the visual layer only:
-// gradient surfaces, layered elevation, a lit green for selection, a hover
-// sheen, and a longer entrance curve.
-// See DESIGN.md "Imagery" and "Radius, Elevation, Motion (rebuilt round 5)".
 import { useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,25 +18,18 @@ import {
 
 export type FlowStep = "console" | "time" | "length" | "confirm" | "booked";
 
-// Default selection so any step renders standalone when jumped to from the
-// header: PS5-5 (fully free tonight), 8:30 pm, 2 hours.
 const DEFAULT_STATION = STATIONS[4] ?? STATIONS[0]!;
 const DEFAULT_START = NOW_INDEX + 1;
 const DEFAULT_HOURS = 2;
 
 const rupees = (amount: number) => `₹${amount}`;
 
-// Tailwind's ring compiles to box-shadow, which forced-colors mode drops. A
-// transparent outline survives it: forced colors repaints it as Highlight.
 const FOCUS_RING =
   "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-transparent";
 
-/* Entrance stagger (DESIGN.md motion): child N rises 35ms later, capped at 9. */
 const riseDelay = (index: number): CSSProperties =>
   ({ "--rise-delay": `${Math.min(index, 8) * 35}ms` }) as CSSProperties;
 
-/* Selection beat: let the green fill land before the flow advances. Reduced
-   motion skips the wait; the fill itself is a color change, not motion. */
 function advanceAfterBeat(advance: () => void) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     advance();
@@ -81,9 +68,6 @@ function StepHeading({
   );
 }
 
-/* CSS-generated console art (DESIGN.md "Imagery"): a hue wash plus the kind
-   word set huge and clipped; sims get a checkered strip. Decorative only,
-   aria-hidden, never a state. */
 function ConsoleArt({ kind, dimmed }: { kind: StationKind; dimmed?: boolean }) {
   return (
     <div aria-hidden className={`art-band art-${kind}${dimmed ? " art-dimmed" : ""}`}>
@@ -92,9 +76,6 @@ function ConsoleArt({ kind, dimmed }: { kind: StationKind; dimmed?: boolean }) {
   );
 }
 
-/* Step 1: pick a console. Big cards, plain words. Consoles you cannot book
-   tonight are plain text on a flat dashed block, not buttons -- nothing
-   unavailable looks tappable, and depth means tappable: no plane on them. */
 function PickConsole({ onPick }: { onPick: (station: MockStation) => void }) {
   return (
     <div className="flex flex-col gap-6">
@@ -156,9 +137,6 @@ function PickConsole({ onPick }: { onPick: (station: MockStation) => void }) {
   );
 }
 
-/* Step 2: pick a start time. Big time buttons; taken times are plain grey
-   text with the word under them, not buttons, and stay flat. Past and
-   after-midnight times are simply absent. */
 function PickTime({
   station,
   selectedStart,
@@ -182,7 +160,6 @@ function PickTime({
         {cells.map((cellIndex, index) => {
           const label = timeLabel12(cellIndex);
           const state = cellStateAt(station, cellIndex);
-          // A free slot too short for the 1-hour minimum reads as taken too.
           const pickable = state === "free" && maxHoursFrom(station, cellIndex) >= 1;
           if (pickable) {
             const selected = cellIndex === selectedStart;
@@ -219,8 +196,6 @@ function PickTime({
   );
 }
 
-/* Step 3: how long. Three big buttons, price in money on each. Lengths that
-   run into someone else's booking are plain grey text saying when. */
 function PickLength({
   station,
   startIndex,
@@ -282,7 +257,6 @@ function PickLength({
   );
 }
 
-/* Step 4: your details. Recap in plain sentences, name, phone, one button. */
 function ConfirmDetails({
   station,
   startIndex,
@@ -341,8 +315,6 @@ function ConfirmDetails({
   );
 }
 
-/* Step 5: booked. The code, big enough to read across a room. The green top
-   hairline on the code box is confirm-green, one of green's functional jobs. */
 function Booked({
   station,
   startIndex,

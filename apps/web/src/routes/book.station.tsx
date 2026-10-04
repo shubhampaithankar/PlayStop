@@ -1,11 +1,3 @@
-// `/book/:stationId` -- child of book.tsx. Screens 2-4: "Pick a start time",
-// "How long?", and "Your details" (DESIGN.md sections 2-4). `start` and
-// `slots` are search params, not path segments (milestone-3-spec.md section
-// 5: "Every piece of state that must survive a reload, a back button, or a
-// pasted link is a search param").
-//
-// Relative .js-extension imports for the same reason as routes/root.tsx:
-// apps/web/tests/router.test.ts imports this file under plain `node --test`.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { Square } from "lucide-react";
@@ -78,14 +70,7 @@ import {
   advanceAfterBeat,
 } from "../components/screen-ui.js";
 
-// .catch(undefined) rather than a bare .optional(): validateSearch throwing
-// escapes to the ROOT error boundary, so one stale or hand-edited link would
-// replace the whole app with "Something broke". A junk param degrading to
-// "not selected" lands the user on an earlier screen instead, and nothing is
-// lost by it -- every instant is re-validated server side on hold and on
-// confirm (SLOT_NOT_ON_GRID), so a bad value can never reach a booking.
 const searchSchema = z.object({
-  // A cell's startsAt, verbatim -- never reconstructed or reformatted.
   start: z.string().optional().catch(undefined),
   slots: z.number().int().positive().optional().catch(undefined),
 });
@@ -115,7 +100,6 @@ function SkeletonScreen({ step, rows }: { step: string; rows: number }) {
   );
 }
 
-/* Screen 2: "Pick a start time" (DESIGN.md section 2). */
 function PickTimeScreen({
   station,
   rows,
@@ -180,9 +164,6 @@ function PickTimeScreen({
   );
 }
 
-/* Screen 3: "How long?" (DESIGN.md section 3). Tapping a length creates the
-   hold -- milestone-3-spec.md section 5, "every hold in this app originates
-   in a click", never in an effect on mount. */
 function PickLengthScreen({
   station,
   startLabel,
@@ -260,9 +241,6 @@ interface ConfirmState {
 }
 const INITIAL_CONFIRM_STATE: ConfirmState = { fieldErrors: {}, panelError: null };
 
-/** The five hold fields the attempt record persists, picked from a
- *  CreateHoldResponse. Explicit rather than a spread so a response field the
- *  record does not model can never leak into sessionStorage. */
 function holdRecord(hold: CreateHoldResponse): NonNullable<BookingAttempt["hold"]> {
   return {
     holdId: hold.holdId,
@@ -273,10 +251,6 @@ function holdRecord(hold: CreateHoldResponse): NonNullable<BookingAttempt["hold"
   };
 }
 
-// A syntactically valid but never-verified uuid: used only for the
-// pre-OTP local field-validation pass below, never sent to the server (the
-// real verificationId, minted by /otp/request and confirmed by
-// /otp/verify, replaces it before the body is frozen).
 const PLACEHOLDER_VERIFICATION_ID = "00000000-0000-0000-0000-000000000000";
 
 function buildBookingCandidate(attempt: BookingAttempt, name: string, contact: OtpContact, verificationId: string): unknown {
@@ -284,11 +258,9 @@ function buildBookingCandidate(attempt: BookingAttempt, name: string, contact: O
     stationId: attempt.stationId,
     startsAt: attempt.startsAt,
     slotCount: attempt.slotCount,
-    partySize: 1, // DESIGN.md round 3 deleted the party-size field; always 1.
+    partySize: 1,
     ...(attempt.hold ? { holdId: attempt.hold.holdId } : {}),
     verificationId,
-    // player.phone / player.email are optional on the schema (booking-guardrails-otp-design.v3):
-    // whichever channel the player verified with is what goes on the booking.
     player: { name, ...(contact.channel === "email" ? { email: contact.email } : { phone: contact.phone }) },
   };
 }
@@ -303,21 +275,9 @@ async function releaseAttemptHold(attempt: BookingAttempt, queryClient: QueryCli
   }).catch(() => {
     // Best effort; the TTL is the real backstop (docs/conventions/booking-correctness.md).
   });
-  // Mirror createHold's acquire-time invalidation on release: without this the
-  // grid the user returns to (e.g. after Back) keeps showing the just-freed
-  // cell as held ("being booked") until the query goes stale on its own.
   invalidateAvailability(queryClient);
 }
 
-/** Sibling fallback on SLOT_TAKEN (booking-guardrails-otp-design.md, "the
- *  bounce" in docs/booking-flow.md's aggregation gap): the kind's card
- *  promised kind-level availability, but a pick pins one unit. Re-run
- *  pickStationForKind against freshly refetched cells for the SAME kind and
- *  retry the hold on it once, rather than bouncing straight to screen 2.
- *  Never touches the double-booking arbiter -- this only changes which
- *  station the client tries next; the hold and confirm endpoints still
- *  re-verify the exact unit server side. Returns null on no sibling, or a
- *  failed retry hold, so the caller falls back to its existing bounce. */
 async function trySiblingHold(
   venue: VenueResponse,
   queryClient: QueryClient,
@@ -347,11 +307,6 @@ async function trySiblingHold(
   }
 }
 
-/* Screen 4: "Your details" (DESIGN.md section 4). Four mutually exclusive
-   reload states from classifyReload, plus the frozen-body confirm flow from
-   milestone-3-spec.md section 5. Its own component so the countdown ticker
-   and the hold's release-on-unmount effect are scoped to exactly the
-   lifetime this screen is mounted for. */
 function DetailsScreen({
   venue,
   date,
@@ -385,20 +340,11 @@ function DetailsScreen({
 
   const [attempt, setAttempt] = useState<BookingAttempt | null>(() => readAttempt());
   const attemptRef = useRef(attempt);
-  // Contact channel (booking-guardrails-otp-design.v3): a resumed frozen
-  // body already committed to one channel, so reopening this screen keeps
-  // it selected rather than defaulting back to sms.
   const [channel, setChannel] = useState<OtpChannel>(() => (attempt?.submitted?.player.email ? "email" : "sms"));
-  // Controlled, one value per channel: toggling Email/SMS keeps what was
-  // typed in the other, and returning from the code panel restores the form.
   const [nameValue, setNameValue] = useState(() => attempt?.submitted?.player.name ?? "");
   const [emailValue, setEmailValue] = useState(() => attempt?.submitted?.player.email ?? "");
   const [phoneValue, setPhoneValue] = useState(() => attempt?.submitted?.player.phone ?? "");
-  // When the next code may be requested (ms epoch); compared to nowMs.
   const [resendAtMs, setResendAtMs] = useState(0);
-  // Timer id of a release scheduled by an effect teardown, so a StrictMode
-  // remount can cancel it before it fires. Survives the remount because a
-  // ref belongs to the component instance, which StrictMode reuses.
   const pendingReleaseRef = useRef<number | null>(null);
   useEffect(() => {
     attemptRef.current = attempt;
@@ -415,11 +361,6 @@ function DetailsScreen({
     };
   }, []);
 
-  // Releasing the hold: reliable on in-app unmount (back, "Pick another
-  // time", a Link elsewhere), best effort on tab close/reload via
-  // `pagehide` with `keepalive` (milestone-3-spec.md section 5). Both read
-  // the ref, not `attempt` directly, so they see whatever the latest value
-  // is rather than what was captured when this effect first ran.
   useEffect(() => {
     const onPageHide = () => {
       const current = attemptRef.current;
@@ -433,14 +374,6 @@ function DetailsScreen({
     };
     document.addEventListener("pagehide", onPageHide);
 
-    // A pending release from a previous teardown means this is a remount,
-    // not a real exit: cancel it. React 19 StrictMode mounts every effect,
-    // tears it down, and mounts it again in development, so a cleanup that
-    // released immediately killed the hold the moment this screen appeared
-    // -- arriving from screen 3, where the hold already exists at mount,
-    // the booking was dead before the form rendered. Deferring by a task
-    // and cancelling on remount makes the two cases distinguishable: a real
-    // unmount has nothing left to cancel it, so the release still fires.
     if (pendingReleaseRef.current !== null) {
       window.clearTimeout(pendingReleaseRef.current);
       pendingReleaseRef.current = null;
@@ -465,13 +398,6 @@ function DetailsScreen({
   const [holdActionError, setHoldActionError] = useState<unknown>(null);
   const [serverExpired, setServerExpired] = useState(false);
 
-  // OTP panel state (booking-guardrails-otp-design.v3 pivot: OTP verifies
-  // EVERY confirm now, hold or not). otpChallenge is non-null exactly while
-  // the code input is showing in place of the "Book" button. pendingDetails
-  // holds the name/phone from the details form while the code panel is up,
-  // so the real verificationId can be folded into the frozen body once
-  // /otp/verify confirms it -- the body can't be built (verificationId is a
-  // required field) until then.
   const [otpChallenge, setOtpChallenge] = useState<{
     devCode: string | undefined;
     verificationId: string;
@@ -480,23 +406,10 @@ function DetailsScreen({
   const pendingDetailsRef = useRef<{ name: string; contact: OtpContact } | null>(null);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpVerifyError, setOtpVerifyError] = useState<string | null>(null);
-  // Refocus after a wrong code, once the render that clears otpVerifying
-  // (and re-enables the input) has actually committed -- calling .focus()
-  // synchronously from the catch block above hit the input while it was
-  // still disabled from the in-flight request, and a disabled input silently
-  // refuses focus.
   useEffect(() => {
     if (otpVerifyError) document.getElementById("details-otp-code")?.focus();
   }, [otpVerifyError]);
-  // Controlled, not defaultValue: React 19 resets a form's uncontrolled
-  // fields once its action function returns, including on the OTP_INVALID
-  // path where the action catches the error and returns normally -- a
-  // controlled value survives that reset instead of vanishing after a typo.
   const [otpCode, setOtpCode] = useState("");
-  // Stable ref identity so the OTP panel scrolls into view once per mount,
-  // not on every keystroke re-render (a fresh inline arrow re-ran
-  // scrollIntoView each render; block:"nearest" no-ops it but the check is
-  // wasted). Hoisted out of the JSX ternary so the hook is unconditional.
   const scrollPanelIntoView = useCallback((node: HTMLDivElement | null) => {
     node?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, []);
@@ -506,8 +419,6 @@ function DetailsScreen({
   const rawCase = classifyReload(attempt, routeParams, nowMs);
   const reloadCase = serverExpired && rawCase.kind === "resume" ? ({ kind: "expired" } as const) : rawCase;
 
-  // Announcements at 60s/20s/0 (milestone-3-spec.md section 5), each guarded
-  // so a resumed tab that jumps from 180s to 0s announces once, not three.
   const announced60 = useRef(false);
   const announced20 = useRef(false);
   const announced0 = useRef(false);
@@ -534,9 +445,6 @@ function DetailsScreen({
     announced0.current = false;
   }
 
-  // milestone-3-spec.md section 5: "if a mismatched record exists ... fire a
-  // release for the old range before overwriting the record." Mirrors
-  // handlePick's same rule in screen 3.
   async function releaseIfMismatched(target: RouteBookingParams) {
     const previous = attemptRef.current;
     const sameRequest =
@@ -568,7 +476,7 @@ function DetailsScreen({
       writeAttempt(withHold);
       setAttempt(withHold);
     } catch (err) {
-      if (err instanceof ApiRequestError && err.code === "HOLD_UNAVAILABLE") return; // stays degraded, fresh already has hold: null
+      if (err instanceof ApiRequestError && err.code === "HOLD_UNAVAILABLE") return;
       if (err instanceof ApiRequestError && errorPresentation[err.code].recovery === "refetch-and-pick") {
         clearAttempt();
         setAttempt(null);
@@ -613,9 +521,6 @@ function DetailsScreen({
     }
   }
 
-  // The actual confirm call, shared by the direct-degraded path, the
-  // post-verify path, and the sibling retry on a confirm-time SLOT_TAKEN --
-  // one place owns "what happens after createBooking answers."
   async function doConfirm(body: CreateBookingRequest, current: BookingAttempt): Promise<void> {
     try {
       const booking = await createBooking(body, current.idempotencyKey);
@@ -638,9 +543,6 @@ function DetailsScreen({
           return;
         }
         if (err.code === "SLOT_TAKEN") {
-          // Sibling fallback (booking-guardrails-otp-design.md): the same
-          // kind may still have a free unit even though this exact one was
-          // just claimed. One retry, on a fresh hold, before bouncing.
           const sibling = await trySiblingHold(venue, queryClient, date, current.stationId, current.startsAt, current.slotCount);
           if (sibling) {
             const siblingBody: CreateBookingRequest = { ...body, stationId: sibling.station.id, holdId: sibling.hold.holdId };
@@ -668,8 +570,6 @@ function DetailsScreen({
           return;
         }
         if (err.code === "IDEMPOTENCY_KEY_REUSED") {
-          // Client bug: the frozen-body rule was violated. Fresh key, clear
-          // the frozen body, let the user submit again.
           const fresh: BookingAttempt = { ...current, idempotencyKey: crypto.randomUUID(), submitted: null };
           writeAttempt(fresh);
           setAttempt(fresh);
@@ -677,7 +577,6 @@ function DetailsScreen({
           return;
         }
         if (err.code === "VALIDATION_FAILED" || err.code === "PARTY_SIZE_EXCEEDS_CAPACITY") {
-          // Safe to unlock: unfreeze so a corrected resubmit sends fresh input.
           const unfrozen: BookingAttempt = { ...current, submitted: null };
           writeAttempt(unfrozen);
           setAttempt(unfrozen);
@@ -690,16 +589,9 @@ function DetailsScreen({
           return;
         }
         if (err.code === "OTP_REQUIRED") {
-          // Defensive: this flow always verifies before confirming. Reached
-          // only by a race (the hold got swapped out from under a verified
-          // challenge) -- start the hold over rather than loop with nothing
-          // left on this screen to retry.
           setServerExpired(true);
           return;
         }
-        // Everything else (IDEMPOTENCY_KEY_REQUIRED, REQUEST_IN_FLIGHT,
-        // RATE_LIMITED, BOOKING_TIMEOUT, INTERNAL, ...): stays frozen, panel
-        // error, "Try again" resends the same key and body.
         setConfirmState({ fieldErrors: {}, panelError: err.message || errorPresentation[err.code].detail });
         return;
       }
@@ -721,13 +613,6 @@ function DetailsScreen({
     }
   }
 
-  // The "Book for ..." submit: freezes the body exactly as before, then
-  // Always requests an OTP challenge and swaps in the code panel: the OTP
-  // pivot (2026-09-23 design v3) requires verification on EVERY confirm,
-  // hold or not. A retry (current.submitted already frozen with a real,
-  // still-unconsumed verificationId -- SLOT_TAKEN doesn't consume it, only
-  // a committed confirm does) skips straight back to doConfirm.
-  // Requests a code and swaps the code panel in (first send and resend).
   async function issueCode(contact: OtpContact): Promise<void> {
     const otpRes = await requestOtp({ contact });
     setOtpVerifyError(null);
@@ -767,8 +652,6 @@ function DetailsScreen({
       }
 
       if (current.submitted) {
-        // Frozen on an earlier pass: every retry sends this verbatim, never
-        // a re-read of the form (milestone-3-spec.md section 5).
         await doConfirm(current.submitted, current);
         return;
       }
@@ -776,11 +659,6 @@ function DetailsScreen({
       const name = nameValue.trim();
       const contactChannel: OtpChannel = channel;
       const rawContact = (channel === "email" ? emailValue : phoneValue).trim();
-      // Reuses the server's own contact schema (packages/engine/contracts/otp)
-      // rather than a hand-rolled regex: same India-phone pattern, same
-      // email shape, same normalization (lowercased email, last-10-digit
-      // phone), so a UX-only pre-check never drifts from what /otp/request
-      // will actually accept.
       const contactParse = otpContactSchema.safeParse(
         contactChannel === "email" ? { channel: "email", email: rawContact } : { channel: "sms", phone: rawContact },
       );
@@ -792,10 +670,6 @@ function DetailsScreen({
       }
       const contact = contactParse.data;
 
-      // Local pre-check only (placeholder verificationId): catches a bad
-      // name/contact before ever calling /otp/request. The real body is
-      // built and validated again in handleVerifySubmit, once a verified
-      // verificationId exists to put in it.
       const precheck = createBookingRequestSchema.safeParse(
         buildBookingCandidate(current, name, contact, PLACEHOLDER_VERIFICATION_ID),
       );
@@ -834,9 +708,6 @@ function DetailsScreen({
     }
   }
 
-  // The code-entry submit. On a verified code, builds the real body (now
-  // that a verified verificationId exists), freezes it, and hands off to
-  // doConfirm.
   async function handleVerifySubmit() {
     const current = attemptRef.current;
     const details = pendingDetailsRef.current;
@@ -890,10 +761,6 @@ function DetailsScreen({
     }
   }
 
-  // "Change" on the code panel (booking-guardrails-otp-design.v3 gap): drops
-  // the challenge and shows the form again, without releasing the hold the
-  // way Back does. The form fields are controlled state, so what the player
-  // typed is still there.
   function handleChangeContact() {
     setOtpChallenge(null);
     setOtpVerifyError(null);
@@ -912,8 +779,6 @@ function DetailsScreen({
   const estimated = !attempt?.hold;
   const countdown = reloadCase.kind === "resume" ? countdownState(reloadCase.hold.expiresAt, nowMs) : null;
 
-  // The ticket stub, unissued: the same object screen 5 issues, minus the
-  // cap rule (DESIGN.md Imagery, round-6 remainder).
   const recap = (
     <div style={riseDelay(1)} className="anim-rise stub flex flex-col gap-1 p-6">
       <p className="font-display text-xl uppercase tracking-wide">{station.name}</p>
@@ -974,8 +839,6 @@ function DetailsScreen({
     );
   }
 
-  // reloadCase.kind is "resume" or "degraded" here: the details form, or the
-  // code panel in its place once a code has been sent.
   const disabled = confirming || otpVerifying || (attempt?.outcomeUnknown ?? false);
   const nameErrorId = "details-name-error";
   const contactErrorId = "details-contact-error";
@@ -1034,7 +897,6 @@ function DetailsScreen({
             </Notice>
           ) : null}
           {otpVerifyError ? <Notice tone="destructive">{otpVerifyError}</Notice> : null}
-          {/* Explicit button, no auto-submit on the 6th digit: this commits the booking. */}
           <form action={() => void handleVerifySubmit()} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="details-otp-code" className="flex items-center gap-2 text-sm leading-none font-medium select-none">
@@ -1184,33 +1046,17 @@ function BookStationScreen() {
   const search = bookStationRoute.useSearch();
   const [pendingHours, setPendingHours] = useState<number | null>(null);
   const [holdError, setHoldError] = useState<unknown>(null);
-  // pendingHours latches the length that advanced us to step 4 (and disables
-  // every length button to block a double-tap). This screen stays mounted
-  // across the step 3 <-> 4 search-param change, so returning to the length
-  // step (slots cleared, e.g. Back) must clear the latch or all the length
-  // buttons stay disabled and nothing re-picks. Reset during render via the
-  // previous-value pattern (react.dev "adjusting state when a prop changes"),
-  // not an effect, which react-hooks/set-state-in-effect forbids.
   const [prevSlots, setPrevSlots] = useState(search.slots);
   if (prevSlots !== search.slots) {
     setPrevSlots(search.slots);
     if (search.slots === undefined && pendingHours !== null) setPendingHours(null);
   }
-  // A stable "now" for the too-soon (lead time) split below -- read once
-  // per mount, not called directly during render (react-hooks/purity).
   const [nowMs] = useState(() => Date.now());
 
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
-  // The date strip (screen 1) picks the night; screen 2-4 read it back so a
-  // console picked for Friday stays on Friday's grid, falling back to
-  // tonight when nothing was picked (a direct link, or storage cleared).
   const date = venue ? (readSelectedDate() ?? currentBusinessDate(venue, new Date())) : undefined;
-  // Availability polling pauses once a hold exists (slots set): the same
-  // reasoning as the hold panel in milestone-3-spec.md section 4.
   const availabilityQuery = useQuery({
-    // Read per render, not latched: the attempt is written when the hold is
-    // placed, after this screen mounted.
     ...availabilityOptions(date ?? "", undefined, search.slots !== undefined, ownHoldOf(readAttempt())),
     enabled: date !== undefined,
   });
@@ -1259,13 +1105,10 @@ function BookStationScreen() {
   }
 
   const availability = availabilityQuery.data;
-  if (!availability) return <PageShell><LoadingScreen /></PageShell>; // exhausts pending/error/success; loader covers any transient undefined (e.g. during a refetch)
+  if (!availability) return <PageShell><LoadingScreen /></PageShell>;
 
   const cells = cellsByStation(availability.cells, stationId);
 
-  // Screen 2: no start chosen yet. Rows include both real startable/taken
-  // cells and cells the server excluded for starting too soon (lead time) --
-  // see leadBlockedCells/timeCellRows in lib/stations.ts.
   if (search.start === undefined) {
     const rows = timeCellRows(cells, station.minSlots, nowMs);
     return (
@@ -1282,9 +1125,6 @@ function BookStationScreen() {
 
   const startCell = cells.find((cell) => cell.startsAt === search.start);
   if (!startCell) {
-    // Stale or hand-edited link: the instant no longer matches a cell on
-    // tonight's grid. Send the user back to pick a real start rather than
-    // rendering a screen with nothing to recap.
     return (
       <PageShell>
         <StepHeading step="Step 2 of 4" title="Pick a start time" onBack={onBackToStation} />
@@ -1294,7 +1134,6 @@ function BookStationScreen() {
   }
   const startLabel = timeLabelOf(startCell);
 
-  // Screen 4: a length was already picked (a hold exists, or degraded).
   if (search.slots !== undefined) {
     return (
       <DetailsScreen
@@ -1314,15 +1153,8 @@ function BookStationScreen() {
     );
   }
 
-  // Screen 3: pick a length, which creates the hold on tap.
   const options = lengthOptionsForStart(cells, search.start, station, availability.gridMinutes);
 
-  // The start matches a real cell, but that cell can no longer begin a
-  // booking. Screen 2 never offers such a start, so this is the aged-link
-  // case: the tab sat open, or the URL was shared, until the start went
-  // past or somebody took it. Say which, in words, and point back at the
-  // time grid -- DESIGN.md keeps "taken" for someone else's booking, so a
-  // start that merely expired must not borrow that word.
   if (options.length === 0) {
     const state = startCellState(cells, search.start);
     const reason =
@@ -1353,21 +1185,13 @@ function BookStationScreen() {
   async function handlePick(option: LengthOption) {
     setHoldError(null);
     setPendingHours(option.hours);
-    // Run the selection beat alongside the hold request: advance at max(beat, POST), not beat + POST.
     const beatDone = new Promise<void>((resolve) => advanceAfterBeat(resolve));
 
-    // milestone-3-spec.md section 5: if a mismatched attempt is already in
-    // sessionStorage (the user was mid-flow on a different range), release
-    // its hold before overwriting the record -- the one place a release
-    // fires for something other than the current route.
     const previous = readAttempt();
     const isSameRequest =
       previous?.stationId === stationId && previous.startsAt === search.start && previous.slotCount === option.slotCount;
     if (previous && !isSameRequest) void releaseAttemptHold(previous, queryClient);
 
-    // The idempotency key is created once, in the same statement that
-    // writes the attempt record, before the hold request is sent. It is
-    // reused on every later retry of the eventual confirm.
     const attempt: BookingAttempt = {
       idempotencyKey: crypto.randomUUID(),
       stationId,
@@ -1393,8 +1217,6 @@ function BookStationScreen() {
         search: { start: search.start, slots: option.slotCount },
       });
     } catch (err) {
-      // Degraded mode (section 9): HOLD_UNAVAILABLE is not a failure to
-      // book. The attempt record already has hold: null; proceed anyway.
       if (err instanceof ApiRequestError && err.code === "HOLD_UNAVAILABLE") {
         await beatDone;
         void navigate({
@@ -1404,10 +1226,6 @@ function BookStationScreen() {
         });
         return;
       }
-      // SLOT_TAKEN / SLOT_HELD: the kind's card promised kind-level
-      // availability but this pick pinned one unit (docs/booking-flow.md's
-      // aggregation gap). Try the next free sibling of the same kind once,
-      // before giving up the attempt and bouncing.
       if (err instanceof ApiRequestError && (err.code === "SLOT_TAKEN" || err.code === "SLOT_HELD") && venue) {
         const sibling = await trySiblingHold(venue, queryClient, date ?? "", stationId, attempt.startsAt, option.slotCount);
         if (sibling) {
@@ -1430,25 +1248,9 @@ function BookStationScreen() {
         }
       }
 
-      // No hold exists for this attempt: abandon it so a retry starts
-      // clean with a fresh key (rule 2's "the user deliberately changes
-      // the request" case, forced by the failure).
       clearAttempt();
       setPendingHours(null);
 
-      // SLOT_TAKEN / SLOT_HELD (and the other "refetch-and-pick" codes):
-      // someone beat the user to this range, and no sibling covered it
-      // either. Not recoverable by retrying the same tap --
-      // invalidateAvailability already ran via onSettled, so send them
-      // back to pick a different time rather than leaving them staring at
-      // stale length buttons. The toast has to fire before the navigation:
-      // this screen unmounts on the way out, so any state set here would
-      // never render, and a silent bounce back to the time grid is the one
-      // moment the user most needs the words. Toast, not a Notice, because
-      // errorPresentation says surface: "toast" for these codes, and
-      // root.tsx already mounts the Sonner <Toaster/>. The server's
-      // message names the conflicting range, so it wins over the generic
-      // detail when present (errorPresentation's own note).
       if (err instanceof ApiRequestError && errorPresentation[err.code].recovery === "refetch-and-pick") {
         const presentation = errorPresentation[err.code];
         toast(presentation.title, { description: err.message || presentation.detail });
