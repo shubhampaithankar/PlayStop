@@ -2,19 +2,13 @@ import { useState, type ReactNode } from "react";
 import { createRoute, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { STATION_KINDS, type StationKind } from "@playstop/types";
-import type { AvailabilityCell, StationSummary } from "@playstop/engine";
+import type { KindSummary, StationSummary } from "@playstop/engine";
 import { rootRoute } from "./root.js";
-import { queryClient, venueOptions, availabilityOptions } from "../lib/query-client.js";
+import { queryClient, venueOptions, availabilitySummaryOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation } from "../lib/api.js";
 import { businessDateStrip, currentBusinessDate, type BusinessDateChip } from "../lib/business-date.js";
 import { ownHoldOf, readAttempt, readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
-import {
-  groupStationsByKind,
-  hourlyRateRupees,
-  kindGroupStatus,
-  pickStationForKind,
-  type KindStatus,
-} from "../lib/stations.js";
+import { groupStationsByKind, hourlyRateRupees } from "../lib/stations.js";
 import { Notice, SkeletonBox, LoadingScreen, FOCUS_RING, riseDelay, StepHeading } from "../components/screen-ui.js";
 
 const ART_WORD: Record<StationKind, string> = {
@@ -39,19 +33,19 @@ function ConsoleArt({ kind, dimmed }: { kind: StationKind; dimmed?: boolean }) {
   );
 }
 
-function StatusLine({ status }: { status: KindStatus }) {
+function StatusLine({ status }: { status: KindSummary }) {
   return (
     <p
       className={
-        status.kind === "free_now"
+        status.status === "free_now"
           ? "text-go dark:text-go-bright text-base font-semibold"
           : "text-base font-semibold"
       }
     >
-      {status.kind === "free_now" ? `${status.count} free now` : null}
-      {status.kind === "free_from" ? `Free from ${status.timeLabel}` : null}
-      {status.kind === "booked_out" ? "Full tonight" : null}
-      {status.kind === "maintenance" ? "Being fixed" : null}
+      {status.status === "free_now" ? `${status.freeCount} free now` : null}
+      {status.status === "free_from" ? `Free from ${status.timeLabel}` : null}
+      {status.status === "booked_out" ? "Full tonight" : null}
+      {status.status === "maintenance" ? "Being fixed" : null}
     </p>
   );
 }
@@ -59,21 +53,19 @@ function StatusLine({ status }: { status: KindStatus }) {
 function ConsoleCard({
   kind,
   stations,
-  cells,
   status,
   index,
   onPick,
 }: {
   kind: StationKind;
   stations: StationSummary[];
-  cells: readonly AvailabilityCell[];
-  status: KindStatus;
+  status: KindSummary;
   index: number;
-  onPick: (station: StationSummary) => void;
+  onPick: (stationId: string) => void;
 }) {
   const representative = stations[0];
   if (!representative) return null;
-  const bookable = status.kind === "free_now" || status.kind === "free_from";
+  const bookable = status.status === "free_now" || status.status === "free_from";
   const body = (
     <div className="flex flex-col gap-1.5 p-4">
       <div className="flex items-baseline justify-between gap-2">
@@ -88,10 +80,7 @@ function ConsoleCard({
   return bookable ? (
     <button
       type="button"
-      onClick={() => {
-        const target = pickStationForKind(stations, cells);
-        if (target) onPick(target);
-      }}
+      onClick={() => onPick(status.pickStationId)}
       style={riseDelay(index)}
       className={`anim-rise pressable surface sheen lift relative flex flex-col overflow-hidden text-left ${FOCUS_RING}`}
     >
@@ -187,7 +176,7 @@ function BookPage() {
   }
 
   const availabilityQuery = useQuery({
-    ...availabilityOptions(date ?? "", undefined, false, ownHoldOf(readAttempt())),
+    ...availabilitySummaryOptions(date ?? "", ownHoldOf(readAttempt())),
     enabled: date !== undefined,
   });
 
@@ -238,17 +227,19 @@ function BookPage() {
         <Notice>Live updates are down. A console shown free may already be taken.</Notice>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {groupStationsByKind(venue.stations).map((group, index) => (
-          <ConsoleCard
-            key={group.kind}
-            kind={group.kind}
-            stations={group.stations}
-            cells={availability.cells}
-            status={kindGroupStatus(group.stations, availability.cells)}
-            index={index}
-            onPick={(picked) => navigate({ to: "/book/$stationId", params: { stationId: picked.id } })}
-          />
-        ))}
+        {groupStationsByKind(venue.stations).map((group, index) => {
+          const status = availability.kinds.find((summary) => summary.kind === group.kind);
+          return status ? (
+            <ConsoleCard
+              key={group.kind}
+              kind={group.kind}
+              stations={group.stations}
+              status={status}
+              index={index}
+              onPick={(stationId) => navigate({ to: "/book/$stationId", params: { stationId } })}
+            />
+          ) : null;
+        })}
       </div>
     </PageShell>
   );
@@ -261,7 +252,7 @@ export const bookRoute = createRoute({
     const venue = await queryClient.ensureQueryData(venueOptions()).catch(() => undefined);
     if (!venue) return;
     const date = readSelectedDate() ?? currentBusinessDate(venue, new Date());
-    await queryClient.ensureQueryData(availabilityOptions(date, undefined, false)).catch(() => undefined);
+    await queryClient.ensureQueryData(availabilitySummaryOptions(date, ownHoldOf(readAttempt()))).catch(() => undefined);
   },
   component: BookPage,
 });

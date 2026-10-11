@@ -60,7 +60,7 @@ test("cancel routes", async (t) => {
       const bookedBody = (await booked.json()) as BookingResponse;
 
       const availBefore = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&kind=ps5&stationId=${stationId}`,
       );
       const availBeforeBody = (await availBefore.json()) as AvailabilityResponse;
       const targetCells = availBeforeBody.cells.filter((c) =>
@@ -81,7 +81,7 @@ test("cancel routes", async (t) => {
       assert.ok(claimStates.every((c) => c.status === "cancelled"));
 
       const availAfter = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&kind=ps5&stationId=${stationId}`,
       );
       const availAfterBody = (await availAfter.json()) as AvailabilityResponse;
       const targetCellsAfter = availAfterBody.cells.filter((c) =>

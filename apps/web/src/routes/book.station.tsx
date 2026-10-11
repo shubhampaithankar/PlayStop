@@ -28,7 +28,7 @@ import {
   requestOtp,
   verifyOtp,
 } from "../lib/api.js";
-import { CELL_STATES } from "@playstop/types";
+import { CELL_STATES, STATION_KINDS } from "@playstop/types";
 import { currentBusinessDate, businessDateLabel } from "../lib/business-date.js";
 import { countdownState, formatCountdown } from "../lib/countdown.js";
 import {
@@ -292,7 +292,7 @@ async function trySiblingHold(
 
   let fresh;
   try {
-    fresh = await queryClient.fetchQuery(availabilityOptions(date, undefined, false));
+    fresh = await queryClient.fetchQuery(availabilityOptions(date, failedStation.kind, false));
   } catch {
     return null;
   }
@@ -1056,9 +1056,11 @@ function BookStationScreen() {
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
   const date = venue ? (readSelectedDate() ?? currentBusinessDate(venue, new Date())) : undefined;
+  const station = venue?.stations.find((candidate) => candidate.id === stationId);
   const availabilityQuery = useQuery({
-    ...availabilityOptions(date ?? "", undefined, search.slots !== undefined, ownHoldOf(readAttempt())),
-    enabled: date !== undefined,
+    // ponytail: placeholder kind while disabled; the query never fires without a real station.
+    ...availabilityOptions(date ?? "", station?.kind ?? STATION_KINDS.PS5, search.slots !== undefined, ownHoldOf(readAttempt())),
+    enabled: date !== undefined && station !== undefined,
   });
 
   const createHoldMutation = useMutation({
@@ -1081,11 +1083,10 @@ function BookStationScreen() {
     );
   }
 
-  if (!venue || availabilityQuery.isPending) {
+  if (!venue || (station !== undefined && availabilityQuery.isPending)) {
     return <SkeletonScreen step={search.start === undefined ? "Step 2 of 4" : "Step 3 of 4"} rows={9} />;
   }
 
-  const station = venue.stations.find((candidate) => candidate.id === stationId);
   if (!station) {
     return (
       <PageShell>

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import type { VenueResponse } from "@playstop/engine";
 import { requireVenue } from "#middleware/venue.js";
-import { findActiveStations } from "#modules/venue/utils.js";
+import { findActiveStations, toStationSummary } from "#modules/venue/utils.js";
 
 export async function getVenue(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -19,16 +19,7 @@ export async function getVenue(req: Request, res: Response): Promise<void> {
     blackoutDates: venue.blackoutDates,
     leadTimeMinutes: venue.leadTimeMinutes,
     maxAdvanceDays: venue.maxAdvanceDays,
-    stations: stations.map((s) => ({
-      id: s._id.toHexString(),
-      slug: s.slug,
-      name: s.name,
-      kind: s.kind,
-      capacity: s.capacity,
-      hourlyRateMinor: s.hourlyRateMinor,
-      minSlots: s.minSlots,
-      maxSlots: s.maxSlots,
-    })),
+    stations: stations.map(toStationSummary),
   };
   res.json(body);
 }

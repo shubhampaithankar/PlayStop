@@ -1,19 +1,16 @@
-import { DateTime } from "luxon";
 import type { Request, Response } from "express";
 import {
   availabilityQuerySchema,
-  computeAvailability,
+  availabilitySummaryQuerySchema,
   ERROR_CODES,
-  generateSlotGrid,
+  freeOwnHeldCells,
+  summarizeAvailability,
   type AvailabilityResponse,
-  type OccupiedCell,
-  type StationInput as EngineStationInput,
+  type AvailabilitySummaryResponse,
 } from "@playstop/engine";
 import { DomainError } from "#errors.js";
 import { requireVenue } from "#middleware/venue.js";
-import { scanVenueHolds } from "#modules/hold/utils.js";
-import { venueScheduleOf } from "#modules/venue/utils.js";
-import { findConfirmedClaims, findStationsForAvailability } from "#modules/availability/utils.js";
+import { loadAvailabilitySnapshot } from "#modules/availability/utils.js";
 
 export async function getAvailability(req: Request, res: Response): Promise<void> {
   const venue = requireVenue(req);
@@ -21,56 +18,8 @@ export async function getAvailability(req: Request, res: Response): Promise<void
   if (!parsed.success) {
     throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid availability query.", parsed.error.flatten());
   }
-  const { date, stationId, kind } = parsed.data;
-  const schedule = venueScheduleOf(venue);
 
-  const localToday = DateTime.now().setZone(venue.timezone).startOf("day");
-  const requestedDate = DateTime.fromISO(date, { zone: venue.timezone }).startOf("day");
-  const daysFromToday = requestedDate.diff(localToday, "days").days;
-  if (daysFromToday < -1 || daysFromToday > venue.maxAdvanceDays) {
-    throw new DomainError(ERROR_CODES.DATE_OUT_OF_RANGE, 422, "That date is outside the bookable range.");
-  }
-
-  const stationDocs = await findStationsForAvailability(venue._id, stationId, kind);
-  const stations: EngineStationInput[] = stationDocs.map((s) => ({
-    stationId: s._id.toHexString(),
-    slug: s.slug,
-    name: s.name,
-    kind: s.kind,
-    capacity: s.capacity,
-    hourlyRateMinor: s.hourlyRateMinor,
-    minSlots: s.minSlots,
-    maxSlots: s.maxSlots,
-    maintenanceWindows: s.maintenanceWindows.map((w) => ({
-      startsAtMs: w.startsAt.getTime(),
-      endsAtMs: w.endsAt.getTime(),
-    })),
-  }));
-
-  const grid = generateSlotGrid(schedule, date);
-
-  let claims: OccupiedCell[] = [];
-  let holdCells: OccupiedCell[] = [];
-  let degraded = false;
-
-  if (grid.kind === "open") {
-    claims = await findConfirmedClaims(venue._id, grid.windowStartMs, grid.windowEndMs);
-
-    const scan = await scanVenueHolds(venue._id);
-    degraded = scan.degraded;
-    holdCells = scan.holds
-      .filter((h) => h.cellStartMs >= grid.windowStartMs && h.cellStartMs < grid.windowEndMs)
-      .map((h) => ({ stationId: h.stationId, cellStartMs: h.cellStartMs }));
-  }
-
-  const result = computeAvailability({
-    venue: schedule,
-    businessDate: date,
-    stations,
-    claims,
-    holds: holdCells,
-    nowMs: Date.now(),
-  });
+  const { result, degraded } = await loadAvailabilitySnapshot(venue, parsed.data);
 
   const body: AvailabilityResponse = {
     businessDate: result.businessDate,
@@ -79,6 +28,32 @@ export async function getAvailability(req: Request, res: Response): Promise<void
     closed: result.closed,
     degraded,
     cells: [...result.cells],
+  };
+  res.json(body);
+}
+
+export async function getAvailabilitySummary(req: Request, res: Response): Promise<void> {
+  const venue = requireVenue(req);
+  const parsed = availabilitySummaryQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw new DomainError(ERROR_CODES.VALIDATION_FAILED, 400, "Invalid availability query.", parsed.error.flatten());
+  }
+  const { date, ownStationId, ownStartsAt, ownSlotCount } = parsed.data;
+
+  const { result, stations, degraded } = await loadAvailabilitySnapshot(venue, { date });
+
+  // The viewer's own hold must not undercount a kind; Mongo stays the truth at confirm time.
+  const ownHold =
+    ownStationId !== undefined && ownStartsAt !== undefined && ownSlotCount !== undefined
+      ? { stationId: ownStationId, startsAt: ownStartsAt, slotCount: ownSlotCount }
+      : null;
+  const cells = freeOwnHeldCells(result.cells, ownHold);
+
+  const body: AvailabilitySummaryResponse = {
+    businessDate: result.businessDate,
+    closed: result.closed,
+    degraded,
+    kinds: summarizeAvailability(stations, cells),
   };
   res.json(body);
 }

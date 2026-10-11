@@ -107,7 +107,7 @@ test(
       assert.equal(claimCount, 0);
 
       const availRes = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&kind=ps5&stationId=${stationId}`,
       );
       assert.equal(availRes.status, 200);
       const availBody = (await availRes.json()) as { degraded: boolean };
