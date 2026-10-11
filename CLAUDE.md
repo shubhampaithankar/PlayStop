@@ -6,6 +6,18 @@
 Self-serve slot booking for a physical gaming lounge: players rent a PS5, PS3, PS2 or racing
 sim by the half hour. The scarcity is physical, so double-booking is a real-world failure.
 
+## Global harness (inherited, do not restate)
+Rules at @~/.claude/CLAUDE.md + rules/ (git, rtk, lean-ctx, subagent-driven, before-done,
+context7, code-graph) are law; this file only ADDS project facts.
+- Agents: `backend-architect` before new API surface; `senior-frontend`+`frontend-design` for
+  web (DESIGN.md binds); `sonnet-executor`/`shell-executor` to build; `haiku-watcher` for dev
+  servers/CI/deploy; `code-simplifier` before done.
+- MCPs: `context7` (any lib), `graphify` (code graph, below), `playwright` (web UI 5173),
+  `shadcn` (components/ui), `github` (PRs), `resend` (OTP sender).
+- Hooks: native Read/Grep/Glob blocked -> `ctx_*` (images/PDF exempt); `rtk` shell compression;
+  `git-rules-gate`; `graphify-refresh` on edits; `impeccable-gate` on UI; Stop = pre-claim +
+  caveman + humanizer gates.
+
 ## Stack
 - TypeScript 5.x, strict, `exactOptionalPropertyTypes` on everywhere
 - Web: Vite + React 19 + Tailwind CSS v4 (`@tailwindcss/vite`, tokens in CSS, no config file)
@@ -40,9 +52,6 @@ before changing code in that area; do not infer the rule from surrounding code.
 - @docs/conventions/booking-correctness.md: why Redis is UX and Mongo is truth
 
 ## Workflow
-- **Docs via Context7**: query the `context7` MCP for any library or API, do not trust memory.
-- **Skill before acting**: `systematic-debugging` before a bugfix,
-  `verification-before-completion` before claiming done.
 - **Code graph first**: ask the `graphify` MCP before grepping the tree. `query_graph` for
   "how does X work", `get_neighbors` for callers and callees with line numbers, `god_nodes`
   for the core abstractions. Two functions share a name across `apps/api` and `apps/web`, so

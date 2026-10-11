@@ -6,6 +6,7 @@ import {
   generateSlotGrid,
   SlotNotOnGridError,
   SlotOutOfWindowError,
+  type StationSummary,
   type VenueSchedule,
 } from "@playstop/engine";
 import { collections, type StationDoc, type VenueDoc } from "#libs/mongo/index.js";
@@ -21,6 +22,19 @@ export function venueScheduleOf(venue: VenueDoc): EngineVenueSchedule {
     blackoutDates: venue.blackoutDates,
     leadTimeMinutes: venue.leadTimeMinutes,
     maxAdvanceDays: venue.maxAdvanceDays,
+  };
+}
+
+export function toStationSummary(station: StationDoc): StationSummary {
+  return {
+    id: station._id.toHexString(),
+    slug: station.slug,
+    name: station.name,
+    kind: station.kind,
+    capacity: station.capacity,
+    hourlyRateMinor: station.hourlyRateMinor,
+    minSlots: station.minSlots,
+    maxSlots: station.maxSlots,
   };
 }
 

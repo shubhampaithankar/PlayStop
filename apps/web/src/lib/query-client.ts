@@ -1,13 +1,20 @@
 import { QueryClient, queryOptions } from "@tanstack/react-query";
 import type { StationKind } from "@playstop/types";
-import { ApiRequestError, getAvailability, getBooking, getVenue } from "./api.js";
+import { ApiRequestError, getAvailability, getAvailabilitySummary, getBooking, getVenue } from "./api.js";
 import { freeOwnHeldCells, type OwnHold } from "./stations.js";
 
 const AVAILABILITY_PREFIX = ["availability"] as const;
 
 export const keys = {
   venue: () => ["venue"] as const,
-  availability: (date: string, kind?: StationKind) => [...AVAILABILITY_PREFIX, date, kind ?? "all"] as const,
+  availability: (date: string, kind: StationKind) => [...AVAILABILITY_PREFIX, date, kind] as const,
+  availabilitySummary: (date: string, ownHold: OwnHold | null) =>
+    [
+      ...AVAILABILITY_PREFIX,
+      "summary",
+      date,
+      ownHold ? `${ownHold.stationId}|${ownHold.startsAt}|${ownHold.slotCount}` : "none",
+    ] as const,
   booking: (id: string) => ["booking", id] as const,
 };
 
@@ -20,7 +27,7 @@ export const venueOptions = () =>
 
 export const availabilityOptions = (
   date: string,
-  kind: StationKind | undefined,
+  kind: StationKind,
   holdPanelOpen: boolean,
   ownHold: OwnHold | null = null,
 ) =>
@@ -31,6 +38,25 @@ export const availabilityOptions = (
     staleTime: 10_000,
     refetchInterval: (query) => {
       if (holdPanelOpen) return false;
+      if (query.state.data?.closed) return false;
+      if (query.state.status === "error") return 60_000;
+      return 20_000;
+    },
+    refetchIntervalInBackground: false,
+  });
+
+export const availabilitySummaryOptions = (date: string, ownHold: OwnHold | null) =>
+  queryOptions({
+    queryKey: keys.availabilitySummary(date, ownHold),
+    queryFn: () =>
+      getAvailabilitySummary({
+        date,
+        ...(ownHold
+          ? { ownStationId: ownHold.stationId, ownStartsAt: ownHold.startsAt, ownSlotCount: ownHold.slotCount }
+          : {}),
+      }),
+    staleTime: 10_000,
+    refetchInterval: (query) => {
       if (query.state.data?.closed) return false;
       if (query.state.status === "error") return 60_000;
       return 20_000;

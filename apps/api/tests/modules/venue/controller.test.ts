@@ -43,7 +43,7 @@ test("venue routes", async (t) => {
     await t.test("GET /availability returns cells for the session, not degraded", async () => {
       const { businessDate } = futureSessionCells(venue, 1);
       const res = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&kind=ps5`,
       );
       assert.equal(res.status, 200);
       const body = availabilityResponseSchema.parse(await res.json());
@@ -64,7 +64,7 @@ test("venue routes", async (t) => {
       "GET /availability far beyond maxAdvanceDays is 422 DATE_OUT_OF_RANGE",
       async () => {
         const res = await fetch(
-          `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=2099-01-01`,
+          `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=2099-01-01&kind=ps5`,
         );
         assert.equal(res.status, 422);
         const body = (await res.json()) as { error: { code: string } };

@@ -46,7 +46,7 @@ external keepalive ping both target it; it also performs a shallow Mongo ping.
 | --- | --- | --- |
 | `GET` | `/health` | `{ status, uptime }`, `503` if the Mongo ping fails |
 | `GET` | `/v1/venues/:venueSlug` | public venue config and active station list |
-| `GET` | `/v1/venues/:venueSlug/availability?date=` | per-cell state for one business date |
+| `GET` | `/v1/venues/:venueSlug/availability?date=&kind=` | per-cell state for one kind on one business date |
 | `POST` | `/v1/venues/:venueSlug/holds` | acquire a Redis hold over N consecutive cells |
 | `POST` | `/v1/venues/:venueSlug/holds/release` | release a hold, idempotent |
 | `POST` | `/v1/venues/:venueSlug/bookings` | confirm a booking, requires `Idempotency-Key` |

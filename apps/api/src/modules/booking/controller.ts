@@ -32,6 +32,7 @@ import {
   runConfirmTransaction,
   toBookingPlayer,
   toBookingResponse,
+  toBookingSummary,
 } from "#modules/booking/utils.js";
 import type { BuiltConfirmDocs } from "#types/booking.js";
 
@@ -298,7 +299,7 @@ export async function lookupBookings(req: Request, res: Response): Promise<void>
   const stationsById = new Map(stationDocs.map((s) => [s._id.toHexString(), s]));
   const bookings = bookingDocs.flatMap((b) => {
     const station = stationsById.get(b.stationId.toHexString());
-    return station ? [toBookingResponse(b, station.name, station.kind, venue.timezone)] : [];
+    return station ? [toBookingSummary(b, station.name)] : [];
   });
   res.status(200).json({ bookings });
 }

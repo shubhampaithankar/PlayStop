@@ -107,7 +107,7 @@ test(
       assert.equal(res.status, 201);
 
       const availSameDate = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&stationId=${stationId}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${businessDate}&kind=ps5&stationId=${stationId}`,
       );
       const availSameDateBody = (await availSameDate.json()) as {
         cells: { startsAt: string; state: string }[];
@@ -123,7 +123,7 @@ test(
         .toISODate();
       assert.ok(nextDate);
       const availNextDate = await fetch(
-        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${nextDate}&stationId=${stationId}`,
+        `${server.baseUrl}/v1/venues/${venue.slug}/availability?date=${nextDate}&kind=ps5&stationId=${stationId}`,
       );
       const availNextDateBody = (await availNextDate.json()) as { cells: { startsAt: string }[] };
       const leaked = availNextDateBody.cells.some((c) =>

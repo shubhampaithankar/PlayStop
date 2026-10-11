@@ -84,8 +84,19 @@ export const lookupBookingsRequestSchema = z.object({
 
 export type LookupBookingsRequest = z.infer<typeof lookupBookingsRequestSchema>;
 
+export const bookingSummarySchema = bookingResponseSchema.pick({
+  id: true,
+  stationName: true,
+  startsAt: true,
+  endsAt: true,
+  status: true,
+  confirmationCode: true,
+});
+
+export type BookingSummary = z.infer<typeof bookingSummarySchema>;
+
 export const lookupBookingsResponseSchema = z.object({
-  bookings: z.array(bookingResponseSchema),
+  bookings: z.array(bookingSummarySchema),
 });
 
 export type LookupBookingsResponse = z.infer<typeof lookupBookingsResponseSchema>;

@@ -3,6 +3,7 @@ import {
   apiErrorSchema,
   venueResponseSchema,
   availabilityResponseSchema,
+  availabilitySummaryResponseSchema,
   createHoldResponseSchema,
   bookingResponseSchema,
   lookupBookingsResponseSchema,
@@ -10,6 +11,7 @@ import {
   otpVerifyResponseSchema,
   type ErrorCode,
   type AvailabilityQuery,
+  type AvailabilitySummaryQuery,
   type CreateHoldRequest,
   type ReleaseHoldRequest,
   type CreateBookingRequest,
@@ -137,9 +139,22 @@ export const getAvailability = (q: AvailabilityQuery) =>
     query: {
       date: q.date,
       ...(q.stationId ? { stationId: q.stationId } : {}),
-      ...(q.kind ? { kind: q.kind } : {}),
+      kind: q.kind,
     },
     schema: availabilityResponseSchema,
+  });
+
+export const getAvailabilitySummary = (q: AvailabilitySummaryQuery) =>
+  request({
+    method: "GET",
+    path: "/availability/summary",
+    query: {
+      date: q.date,
+      ...(q.ownStationId && q.ownStartsAt && q.ownSlotCount
+        ? { ownStationId: q.ownStationId, ownStartsAt: q.ownStartsAt, ownSlotCount: String(q.ownSlotCount) }
+        : {}),
+    },
+    schema: availabilitySummaryResponseSchema,
   });
 
 export const createHold = (b: CreateHoldRequest) =>
