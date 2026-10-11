@@ -3,7 +3,7 @@ import { createRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { otpContactSchema } from "@playstop/engine";
-import type { BookingResponse, OtpChannel, OtpContact } from "@playstop/engine";
+import type { BookingSummary, OtpChannel, OtpContact } from "@playstop/engine";
 import { rootRoute } from "./root.js";
 import { venueOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation, lookupBookings, requestOtp, verifyOtp } from "../lib/api.js";
@@ -47,7 +47,7 @@ function BookingsFindScreen() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
-  const [results, setResults] = useState<BookingResponse[] | null>(null);
+  const [results, setResults] = useState<BookingSummary[] | null>(null);
 
   async function handleSendCode() {
     const raw = (channel === "email" ? emailValue : phoneValue).trim();
@@ -129,7 +129,7 @@ function BookingsFindScreen() {
                     search={{ code: booking.confirmationCode }}
                     className={`pressable border-border flex flex-col gap-1 rounded-(--radius-card) border p-4 ${cancelled || ended ? "opacity-60" : ""} ${FOCUS_RING}`}
                   >
-                    <span className="text-base font-semibold">{booking.stationName}</span>
+                    <span className={`text-base font-semibold ${ended ? "line-through" : ""}`}>{booking.stationName}</span>
                     <span className="text-muted-foreground text-sm">
                       {dateLabel}, {instantLabel(booking.startsAt, venue.timezone)} to{" "}
                       {instantLabel(booking.endsAt, venue.timezone)}

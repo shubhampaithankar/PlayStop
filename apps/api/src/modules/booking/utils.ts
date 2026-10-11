@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { MongoOperationTimeoutError, MongoServerError, type ObjectId } from "mongodb";
-import { ERROR_CODES, type BookingResponse, type CreateBookingRequest, type OtpChannel } from "@playstop/engine";
+import { ERROR_CODES, type BookingResponse, type BookingSummary, type CreateBookingRequest, type OtpChannel } from "@playstop/engine";
 import { collections, mongoClient, type BookingDoc, type StationDoc } from "#libs/mongo/index.js";
 import { DomainError } from "#errors.js";
 import { notifyFor } from "#libs/notify/index.js";
@@ -51,6 +51,17 @@ export function toBookingResponse(
     confirmationSentAt: booking.confirmationSentAt ? booking.confirmationSentAt.toISOString() : null,
     cancellationSentAt: booking.cancellationSentAt ? booking.cancellationSentAt.toISOString() : null,
     nudgeSentAt: booking.nudgeSentAt ? booking.nudgeSentAt.toISOString() : null,
+  };
+}
+
+export function toBookingSummary(booking: BookingResponseSource, stationName: string): BookingSummary {
+  return {
+    id: booking._id.toHexString(),
+    stationName,
+    startsAt: booking.startsAt.toISOString(),
+    endsAt: booking.endsAt.toISOString(),
+    status: booking.status,
+    confirmationCode: booking.confirmationCode,
   };
 }
 
