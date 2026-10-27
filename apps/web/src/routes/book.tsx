@@ -2,13 +2,12 @@ import { useState, type ReactNode } from "react";
 import { createRoute, Outlet, useChildMatches, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { STATION_KINDS, type StationKind } from "@playstop/types";
-import type { KindSummary, StationSummary } from "@playstop/engine";
+import type { KindSummary } from "@playstop/engine";
 import { rootRoute } from "./root.js";
-import { queryClient, venueOptions, stationsOptions, availabilitySummaryOptions } from "../lib/query-client.js";
+import { queryClient, venueOptions, availabilitySummaryOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation } from "../lib/api.js";
 import { businessDateStrip, currentBusinessDate, type BusinessDateChip } from "../lib/business-date.js";
 import { ownHoldOf, readAttempt, readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
-import { groupStationsByKind, hourlyRateRupees } from "../lib/stations.js";
 import { Notice, SkeletonBox, LoadingScreen, FOCUS_RING, riseDelay, StepHeading } from "../components/screen-ui.js";
 
 const ART_WORD: Record<StationKind, string> = {
@@ -51,27 +50,22 @@ function StatusLine({ status }: { status: KindSummary }) {
 }
 
 function ConsoleCard({
-  kind,
-  stations,
   status,
   index,
   onPick,
 }: {
-  kind: StationKind;
-  stations: StationSummary[];
   status: KindSummary;
   index: number;
   onPick: (stationId: string) => void;
 }) {
-  const representative = stations[0];
-  if (!representative) return null;
+  const kind = status.kind;
   const bookable = status.status === "free_now" || status.status === "free_from";
   const body = (
     <div className="flex flex-col gap-1.5 p-4">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-display text-xl uppercase tracking-wide">{KIND_LABEL[kind]}</span>
         <span className="text-sm">
-          <span className="font-mono font-medium">₹{hourlyRateRupees(representative)}</span> an hour
+          <span className="font-mono font-medium">₹{status.hourlyRateMinor / 100}</span> an hour
         </span>
       </div>
       <StatusLine status={status} />
@@ -165,7 +159,6 @@ function BookPage() {
   const navigate = useNavigate();
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
-  const stationsQuery = useQuery(stationsOptions());
 
   const [selectedDate, setSelectedDate] = useState<string | undefined>(() => readSelectedDate() ?? undefined);
   const date = venue ? (selectedDate ?? currentBusinessDate(venue, new Date())) : undefined;
@@ -183,15 +176,15 @@ function BookPage() {
 
   if (childMatches.length > 0) return <Outlet />;
 
-  if (venueQuery.isError || stationsQuery.isError) {
+  if (venueQuery.isError) {
     return (
       <PageShell>
-        <ErrorNotice error={venueQuery.error ?? stationsQuery.error} />
+        <ErrorNotice error={venueQuery.error} />
       </PageShell>
     );
   }
 
-  if (!venue || stationsQuery.isPending) {
+  if (!venue) {
     return (
       <PageShell>
         <SkeletonGrid />
@@ -228,19 +221,14 @@ function BookPage() {
         <Notice>Live updates are down. A console shown free may already be taken.</Notice>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {groupStationsByKind(stationsQuery.data ?? []).map((group, index) => {
-          const status = availability.kinds.find((summary) => summary.kind === group.kind);
-          return status ? (
-            <ConsoleCard
-              key={group.kind}
-              kind={group.kind}
-              stations={group.stations}
-              status={status}
-              index={index}
-              onPick={(stationId) => navigate({ to: "/book/$stationId", params: { stationId } })}
-            />
-          ) : null;
-        })}
+        {availability.kinds.map((status, index) => (
+          <ConsoleCard
+            key={status.kind}
+            status={status}
+            index={index}
+            onPick={(stationId) => navigate({ to: "/book/$stationId", params: { stationId } })}
+          />
+        ))}
       </div>
     </PageShell>
   );
@@ -250,10 +238,7 @@ export const bookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/book",
   loader: async () => {
-    const [venue] = await Promise.all([
-      queryClient.ensureQueryData(venueOptions()).catch(() => undefined),
-      queryClient.ensureQueryData(stationsOptions()).catch(() => undefined),
-    ]);
+    const venue = await queryClient.ensureQueryData(venueOptions()).catch(() => undefined);
     if (!venue) return;
     const date = readSelectedDate() ?? currentBusinessDate(venue, new Date());
     await queryClient.ensureQueryData(availabilitySummaryOptions(date, ownHoldOf(readAttempt()))).catch(() => undefined);

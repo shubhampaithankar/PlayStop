@@ -154,6 +154,7 @@ function summarizeKind(
   stations: readonly StationSummary[],
   cells: readonly AvailabilityCell[],
 ): KindSummary {
+  const hourlyRateMinor = stations[0]?.hourlyRateMinor ?? 0;
   const scanned = [...stations]
     .sort((a, b) => stationNumber(a) - stationNumber(b))
     .map((station) => {
@@ -168,7 +169,7 @@ function summarizeKind(
   const freeNow = scanned.filter((entry) => entry.status === "free_now");
   const [firstFreeNow] = freeNow;
   if (firstFreeNow) {
-    return { kind, status: "free_now", freeCount: freeNow.length, pickStationId: firstFreeNow.stationId };
+    return { kind, status: "free_now", hourlyRateMinor, freeCount: freeNow.length, pickStationId: firstFreeNow.stationId };
   }
 
   let soonest: { stationId: string; cell: AvailabilityCell } | undefined;
@@ -176,10 +177,10 @@ function summarizeKind(
     if (earliest && (!soonest || earliest.startsAt < soonest.cell.startsAt)) soonest = { stationId, cell: earliest };
   }
   if (soonest) {
-    return { kind, status: "free_from", timeLabel: timeLabelOf(soonest.cell), pickStationId: soonest.stationId };
+    return { kind, status: "free_from", hourlyRateMinor, timeLabel: timeLabelOf(soonest.cell), pickStationId: soonest.stationId };
   }
 
   return scanned.every((entry) => entry.status === "maintenance")
-    ? { kind, status: "maintenance" }
-    : { kind, status: "booked_out" };
+    ? { kind, status: "maintenance", hourlyRateMinor }
+    : { kind, status: "booked_out", hourlyRateMinor };
 }

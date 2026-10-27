@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { availabilityResponseSchema, venueResponseSchema } from "@playstop/engine";
+import { availabilityResponseSchema, availabilitySummaryResponseSchema, venueResponseSchema } from "@playstop/engine";
 import {
   futureSessionCells,
   seedVenue,
@@ -50,6 +50,14 @@ test("venue routes", async (t) => {
       assert.equal(body.degraded, false);
       assert.equal(body.cells.length, 24); // 14:00 to 02:00, 30-minute grid
       assert.ok(body.cells.every((c) => c.state === "free"));
+    });
+
+    await t.test("GET /availability/summary carries the kind's hourly rate", async () => {
+      const { businessDate } = futureSessionCells(venue, 1);
+      const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}/availability/summary?date=${businessDate}`);
+      assert.equal(res.status, 200);
+      const body = availabilitySummaryResponseSchema.parse(await res.json());
+      assert.equal(body.kinds[0]?.hourlyRateMinor, 1200); // seedVenue default rate
     });
 
     await t.test("GET /availability with a missing date is 400 VALIDATION_FAILED", async () => {

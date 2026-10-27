@@ -55,18 +55,18 @@ test("free_now: count and pick have a real free run of minSlots", () => {
 test("everything booked is booked_out", () => {
   const cells = [...row(ID_A, [BOOKED, BOOKED]), ...row(ID_B, [BOOKED, BOOKED])];
   const summaries = summarizeAvailability([station(ID_A, 1), station(ID_B, 2)], cells);
-  assert.deepEqual(summaries, [{ kind: "ps5", status: "booked_out" }]);
+  assert.deepEqual(summaries, [{ kind: "ps5", status: "booked_out", hourlyRateMinor: 15000 }]);
 });
 
 test("one free, rest booked: count 1 and that station's id", () => {
   const cells = [...row(ID_A, [BOOKED, BOOKED]), ...row(ID_B, [FREE, BOOKED])];
   const [summary] = summarizeAvailability([station(ID_A, 1), station(ID_B, 2)], cells);
-  assert.deepEqual(summary, { kind: "ps5", status: "free_now", freeCount: 1, pickStationId: ID_B });
+  assert.deepEqual(summary, { kind: "ps5", status: "free_now", hourlyRateMinor: 15000, freeCount: 1, pickStationId: ID_B });
 });
 
 test("closed day (no cells) is booked_out for every kind", () => {
   const summaries = summarizeAvailability([station(ID_A, 1)], []);
-  assert.deepEqual(summaries, [{ kind: "ps5", status: "booked_out" }]);
+  assert.deepEqual(summaries, [{ kind: "ps5", status: "booked_out", hourlyRateMinor: 15000 }]);
 });
 
 test("free later only: free_from with a pick", () => {
@@ -82,5 +82,5 @@ test("own-held last free station stays free_now for that viewer", () => {
   assert.equal(summarizeAvailability(stations, cells)[0]?.status, "booked_out");
   const own = { stationId: ID_A, startsAt: cells[0]!.startsAt, slotCount: 2 };
   const [summary] = summarizeAvailability(stations, freeOwnHeldCells(cells, own));
-  assert.deepEqual(summary, { kind: "ps5", status: "free_now", freeCount: 1, pickStationId: ID_A });
+  assert.deepEqual(summary, { kind: "ps5", status: "free_now", hourlyRateMinor: 15000, freeCount: 1, pickStationId: ID_A });
 });
