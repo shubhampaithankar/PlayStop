@@ -40,17 +40,19 @@ export const kindSummarySchema = z.discriminatedUnion("status", [
   z.object({
     kind: stationKindSchema,
     status: z.literal("free_now"),
+    hourlyRateMinor: z.number().int(),
     freeCount: z.number().int().positive(),
     pickStationId: objectIdSchema,
   }),
   z.object({
     kind: stationKindSchema,
     status: z.literal("free_from"),
+    hourlyRateMinor: z.number().int(),
     timeLabel: z.string(),
     pickStationId: objectIdSchema,
   }),
-  z.object({ kind: stationKindSchema, status: z.literal("maintenance") }),
-  z.object({ kind: stationKindSchema, status: z.literal("booked_out") }),
+  z.object({ kind: stationKindSchema, status: z.literal("maintenance"), hourlyRateMinor: z.number().int() }),
+  z.object({ kind: stationKindSchema, status: z.literal("booked_out"), hourlyRateMinor: z.number().int() }),
 ]);
 
 export type KindSummary = z.infer<typeof kindSummarySchema>;
