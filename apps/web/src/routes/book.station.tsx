@@ -14,7 +14,7 @@ import type {
   VenueResponse,
 } from "@playstop/engine";
 import { bookRoute } from "./book.js";
-import { venueOptions, availabilityOptions, invalidateAvailability, keys } from "../lib/query-client.js";
+import { venueOptions, stationsOptions, availabilityOptions, invalidateAvailability, keys } from "../lib/query-client.js";
 import { toast } from "sonner";
 import {
   ApiRequestError,
@@ -279,16 +279,16 @@ async function releaseAttemptHold(attempt: BookingAttempt, queryClient: QueryCli
 }
 
 async function trySiblingHold(
-  venue: VenueResponse,
+  stations: StationSummary[],
   queryClient: QueryClient,
   date: string,
   failedStationId: string,
   startsAt: string,
   slotCount: number,
 ): Promise<{ station: StationSummary; hold: CreateHoldResponse } | null> {
-  const failedStation = venue.stations.find((candidate) => candidate.id === failedStationId);
+  const failedStation = stations.find((candidate) => candidate.id === failedStationId);
   if (!failedStation) return null;
-  const siblings = venue.stations.filter((candidate) => candidate.kind === failedStation.kind);
+  const siblings = stations.filter((candidate) => candidate.kind === failedStation.kind);
 
   let fresh;
   try {
@@ -309,6 +309,7 @@ async function trySiblingHold(
 
 function DetailsScreen({
   venue,
+  stations,
   date,
   station,
   cells,
@@ -322,6 +323,7 @@ function DetailsScreen({
   onBackToLength,
 }: {
   venue: VenueResponse;
+  stations: StationSummary[];
   date: string;
   station: StationSummary;
   cells: AvailabilityCell[];
@@ -543,7 +545,7 @@ function DetailsScreen({
           return;
         }
         if (err.code === "SLOT_TAKEN") {
-          const sibling = await trySiblingHold(venue, queryClient, date, current.stationId, current.startsAt, current.slotCount);
+          const sibling = await trySiblingHold(stations, queryClient, date, current.stationId, current.startsAt, current.slotCount);
           if (sibling) {
             const siblingBody: CreateBookingRequest = { ...body, stationId: sibling.station.id, holdId: sibling.hold.holdId };
             const siblingAttempt: BookingAttempt = {
@@ -1055,8 +1057,10 @@ function BookStationScreen() {
 
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
+  const stationsQuery = useQuery(stationsOptions());
+  const stations = stationsQuery.data ?? [];
   const date = venue ? (readSelectedDate() ?? currentBusinessDate(venue, new Date())) : undefined;
-  const station = venue?.stations.find((candidate) => candidate.id === stationId);
+  const station = stations.find((candidate) => candidate.id === stationId);
   const availabilityQuery = useQuery({
     // ponytail: placeholder kind while disabled; the query never fires without a real station.
     ...availabilityOptions(date ?? "", station?.kind ?? STATION_KINDS.PS5, search.slots !== undefined, ownHoldOf(readAttempt())),
@@ -1083,7 +1087,7 @@ function BookStationScreen() {
     );
   }
 
-  if (!venue || (station !== undefined && availabilityQuery.isPending)) {
+  if (!venue || stationsQuery.isPending || (station !== undefined && availabilityQuery.isPending)) {
     return <SkeletonScreen step={search.start === undefined ? "Step 2 of 4" : "Step 3 of 4"} rows={9} />;
   }
 
@@ -1139,6 +1143,7 @@ function BookStationScreen() {
     return (
       <DetailsScreen
         venue={venue}
+        stations={stations}
         date={date ?? ""}
         station={station}
         cells={cells}
@@ -1228,7 +1233,7 @@ function BookStationScreen() {
         return;
       }
       if (err instanceof ApiRequestError && (err.code === "SLOT_TAKEN" || err.code === "SLOT_HELD") && venue) {
-        const sibling = await trySiblingHold(venue, queryClient, date ?? "", stationId, attempt.startsAt, option.slotCount);
+        const sibling = await trySiblingHold(stations, queryClient, date ?? "", stationId, attempt.startsAt, option.slotCount);
         if (sibling) {
           writeAttempt({
             idempotencyKey: attempt.idempotencyKey,

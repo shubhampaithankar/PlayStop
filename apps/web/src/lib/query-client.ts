@@ -1,12 +1,13 @@
 import { QueryClient, queryOptions } from "@tanstack/react-query";
 import type { StationKind } from "@playstop/types";
-import { ApiRequestError, getAvailability, getAvailabilitySummary, getBooking, getVenue } from "./api.js";
+import { ApiRequestError, getAvailability, getAvailabilitySummary, getBooking, getStations, getVenue } from "./api.js";
 import { freeOwnHeldCells, type OwnHold } from "./stations.js";
 
 const AVAILABILITY_PREFIX = ["availability"] as const;
 
 export const keys = {
   venue: () => ["venue"] as const,
+  stations: () => ["stations"] as const,
   availability: (date: string, kind: StationKind) => [...AVAILABILITY_PREFIX, date, kind] as const,
   availabilitySummary: (date: string, ownHold: OwnHold | null) =>
     [
@@ -22,6 +23,13 @@ export const venueOptions = () =>
   queryOptions({
     queryKey: keys.venue(),
     queryFn: getVenue,
+    staleTime: Infinity,
+  });
+
+export const stationsOptions = () =>
+  queryOptions({
+    queryKey: keys.stations(),
+    queryFn: getStations,
     staleTime: Infinity,
   });
 

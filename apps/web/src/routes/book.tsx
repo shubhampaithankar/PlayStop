@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { STATION_KINDS, type StationKind } from "@playstop/types";
 import type { KindSummary, StationSummary } from "@playstop/engine";
 import { rootRoute } from "./root.js";
-import { queryClient, venueOptions, availabilitySummaryOptions } from "../lib/query-client.js";
+import { queryClient, venueOptions, stationsOptions, availabilitySummaryOptions } from "../lib/query-client.js";
 import { ApiRequestError, errorPresentation } from "../lib/api.js";
 import { businessDateStrip, currentBusinessDate, type BusinessDateChip } from "../lib/business-date.js";
 import { ownHoldOf, readAttempt, readSelectedDate, writeSelectedDate } from "../lib/attempt.js";
@@ -165,6 +165,7 @@ function BookPage() {
   const navigate = useNavigate();
   const venueQuery = useQuery(venueOptions());
   const venue = venueQuery.data;
+  const stationsQuery = useQuery(stationsOptions());
 
   const [selectedDate, setSelectedDate] = useState<string | undefined>(() => readSelectedDate() ?? undefined);
   const date = venue ? (selectedDate ?? currentBusinessDate(venue, new Date())) : undefined;
@@ -182,15 +183,15 @@ function BookPage() {
 
   if (childMatches.length > 0) return <Outlet />;
 
-  if (venueQuery.isError) {
+  if (venueQuery.isError || stationsQuery.isError) {
     return (
       <PageShell>
-        <ErrorNotice error={venueQuery.error} />
+        <ErrorNotice error={venueQuery.error ?? stationsQuery.error} />
       </PageShell>
     );
   }
 
-  if (!venue) {
+  if (!venue || stationsQuery.isPending) {
     return (
       <PageShell>
         <SkeletonGrid />
@@ -227,7 +228,7 @@ function BookPage() {
         <Notice>Live updates are down. A console shown free may already be taken.</Notice>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {groupStationsByKind(venue.stations).map((group, index) => {
+        {groupStationsByKind(stationsQuery.data ?? []).map((group, index) => {
           const status = availability.kinds.find((summary) => summary.kind === group.kind);
           return status ? (
             <ConsoleCard
@@ -249,7 +250,10 @@ export const bookRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/book",
   loader: async () => {
-    const venue = await queryClient.ensureQueryData(venueOptions()).catch(() => undefined);
+    const [venue] = await Promise.all([
+      queryClient.ensureQueryData(venueOptions()).catch(() => undefined),
+      queryClient.ensureQueryData(stationsOptions()).catch(() => undefined),
+    ]);
     if (!venue) return;
     const date = readSelectedDate() ?? currentBusinessDate(venue, new Date());
     await queryClient.ensureQueryData(availabilitySummaryOptions(date, ownHoldOf(readAttempt()))).catch(() => undefined);

@@ -24,12 +24,11 @@ test("venue routes", async (t) => {
     server = await startTestServer();
     venue = await seedVenue();
 
-    await t.test("GET /venues/:slug returns the venue and its active stations", async () => {
+    await t.test("GET /venues/:slug returns the venue", async () => {
       const res = await fetch(`${server.baseUrl}/v1/venues/${venue.slug}`);
       assert.equal(res.status, 200);
       const body = venueResponseSchema.parse(await res.json());
       assert.equal(body.slug, venue.slug);
-      assert.equal(body.stations.length, 1);
       assert.equal(body.gridMinutes, 30);
     });
 

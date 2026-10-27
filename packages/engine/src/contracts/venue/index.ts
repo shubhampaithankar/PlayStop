@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { localDateSchema } from "../primitives/index.js";
-import { stationSummarySchema } from "../station/index.js";
 
 const openingHoursDaySchema = z
   .object({ open: z.string(), close: z.string() })
@@ -28,7 +27,6 @@ export const venueResponseSchema = z.object({
   blackoutDates: z.array(localDateSchema),
   leadTimeMinutes: z.number().int(),
   maxAdvanceDays: z.number().int(),
-  stations: z.array(stationSummarySchema),
 });
 
 export type VenueResponse = z.infer<typeof venueResponseSchema>;

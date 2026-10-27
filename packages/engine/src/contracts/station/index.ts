@@ -16,3 +16,5 @@ export const stationSummarySchema = z.object({
 });
 
 export type StationSummary = z.infer<typeof stationSummarySchema>;
+export const stationCatalogResponseSchema = z.array(stationSummarySchema);
+export type StationCatalogResponse = z.infer<typeof stationCatalogResponseSchema>;

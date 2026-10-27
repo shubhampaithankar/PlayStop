@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   apiErrorSchema,
   venueResponseSchema,
+  stationCatalogResponseSchema,
   availabilityResponseSchema,
   availabilitySummaryResponseSchema,
   createHoldResponseSchema,
@@ -131,6 +132,9 @@ async function request<T>(opts: RequestOptions<T>): Promise<T> {
 }
 
 export const getVenue = () => request({ method: "GET", path: "", schema: venueResponseSchema });
+
+export const getStations = () =>
+  request({ method: "GET", path: "/stations", schema: stationCatalogResponseSchema });
 
 export const getAvailability = (q: AvailabilityQuery) =>
   request({
